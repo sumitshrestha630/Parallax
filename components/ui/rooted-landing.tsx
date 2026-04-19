@@ -3,6 +3,7 @@
 import React, { useEffect, useRef } from "react";
 import { motion, useInView } from "framer-motion";
 import Link from "next/link";
+import Image from "next/image";
 import { ContainerScroll } from "@/components/ui/container-scroll-animation";
 import { FeatureGrid, type Feature } from "@/components/ui/feature-grid";
 
@@ -29,161 +30,6 @@ const PIXEL_BTN_STYLE = (bg = "#6ED640", border = "#3A9018", shadow = "#1E6010")
   boxShadow: `0 5px 0 ${shadow}, 0 7px 0 rgba(0,0,0,0.4)`,
   padding: "12px 24px",
 });
-
-// ─── SECTION 1 — Pixel art hero (canvas scene) ────────────────────────────────
-
-const CW = 480, CH = 270;
-type Ctx = CanvasRenderingContext2D;
-const fx = (n: number) => ~~n;
-function fill(ctx: Ctx, x: number, y: number, w: number, h: number, c: string) {
-  ctx.fillStyle = c;
-  ctx.fillRect(fx(x), fx(y), Math.max(1, fx(w)), Math.max(1, fx(h)));
-}
-
-function drawSky(ctx: Ctx, h: number) {
-  const bands = ["#1B4882", "#1E5090", "#265CA0", "#306BB0", "#3A7BBF", "#4A8ECC",
-    "#5A9FD8", "#70B2E4", "#87CEEB", "#9DD7F0", "#B0E0F7", "#C5EAF9"];
-  const bh = (h * 0.64) / bands.length;
-  bands.forEach((c, i) => fill(ctx, 0, i * bh, CW, bh + 1, c));
-}
-
-function drawCloud(ctx: Ctx, cx: number, cy: number, s: number) {
-  fill(ctx, cx + 3, cy + 4, s * 0.95, s * 0.38, "#A8CAD8");
-  fill(ctx, cx, cy + s * 0.28, s * 0.72, s * 0.38, "#D4EDF7");
-  fill(ctx, cx + s * 0.12, cy + s * 0.1, s * 0.64, s * 0.52, "#E8F5FB");
-  fill(ctx, cx + s * 0.28, cy, s * 0.5, s * 0.58, "#F4FAFE");
-  fill(ctx, cx + s * 0.04, cy + s * 0.22, s * 0.92, s * 0.36, "#FFFFFF");
-}
-
-function drawMtn(ctx: Ctx, px: number, py: number, baseY: number,
-  fc: string, sc: string, snow?: boolean) {
-  const mh = baseY - py;
-  for (let y = fx(py); y < fx(baseY); y++) {
-    const prog = (y - py) / mh;
-    const hw = prog * mh * 0.72;
-    ctx.fillStyle = fc; ctx.fillRect(fx(px - hw), y, Math.max(1, fx(hw * 2)), 1);
-    ctx.fillStyle = sc; ctx.fillRect(fx(px + hw * 0.28), y, Math.max(1, fx(hw * 0.72)), 1);
-    if (snow && y < py + mh * 0.18) {
-      ctx.fillStyle = "#D8EDF5";
-      ctx.fillRect(fx(px - hw * 0.5), y, Math.max(1, fx(hw)), 1);
-    }
-  }
-}
-
-function drawTree(ctx: Ctx, x: number, base: number, size: number) {
-  const tw = Math.max(2, fx(size * 0.11)), th = fx(size * 0.26), cw = fx(size * 0.56);
-  fill(ctx, x - tw / 2, base - th, tw, th, "#3A1E0A");
-  const tiers: [string, number, number][] = [
-    ["#132E12", base - th - fx(size * 0.26), cw],
-    ["#1C4A1C", base - th - fx(size * 0.50), fx(cw * 0.76)],
-    ["#286030", base - th - fx(size * 0.72), fx(cw * 0.52)],
-  ];
-  tiers.forEach(([c, ty, tw2]) => {
-    fill(ctx, x - tw2 / 2, ty, tw2, fx(size * 0.32), c);
-    fill(ctx, x - tw2 / 2, ty, 2, fx(size * 0.28), "#30703A");
-  });
-}
-
-function drawGrass(ctx: Ctx, w: number, h: number, t: number) {
-  fill(ctx, 0, h * 0.64, w, h * 0.36, "#1C4818");
-  ctx.fillStyle = "#286A20";
-  for (let x = 0; x < w; x++) {
-    const wy = fx(h * 0.685 + Math.sin(x * 0.038 + t * 0.28) * 4.5);
-    ctx.fillRect(x, wy, 1, h - wy);
-  }
-  ctx.fillStyle = "#389030";
-  for (let x = 0; x < w; x++) {
-    const wy = fx(h * 0.765 + Math.sin(x * 0.055 + t * 0.38 + 1.4) * 3.5);
-    ctx.fillRect(x, wy, 1, h - wy);
-  }
-  fill(ctx, 0, h * 0.87, w, h * 0.13, "#112010");
-  ctx.fillStyle = "#48A038";
-  for (let x = 0; x < w; x += 3) {
-    const wy = fx(h * 0.765 + Math.sin(x * 0.055 + t * 0.38 + 1.4) * 3.5);
-    ctx.fillRect(x, wy - 5 + fx(Math.sin(x * 0.28 + t * 2.0) * 3), 2, 6);
-  }
-}
-
-function drawFlower(ctx: Ctx, x: number, y: number, petal: string) {
-  fill(ctx, x, y - 8, 1, 8, "#3A8820");
-  fill(ctx, x - 3, y - 10, 7, 3, petal);
-  fill(ctx, x - 1, y - 12, 3, 7, petal);
-  fill(ctx, x, y - 10, 1, 1, "#F2DC40");
-}
-
-function drawSapling(ctx: Ctx, x: number, y: number, t: number) {
-  ctx.fillStyle = "#5A3010";
-  for (let i = 1; i <= 10; i++) {
-    ctx.fillRect(fx(x - 2 - i * 2.2), fx(y + i * 1.3), 2, 2);
-    ctx.fillRect(fx(x + 2 + i * 2.2), fx(y + i * 1.3), 2, 2);
-    if (i % 3 === 0) {
-      ctx.fillRect(fx(x - 2 - i * 2.2 - 3), fx(y + i * 1.3 + 2), 2, 2);
-      ctx.fillRect(fx(x + 2 + i * 2.2 + 3), fx(y + i * 1.3 + 2), 2, 2);
-    }
-  }
-  ctx.fillRect(fx(x - 1), fx(y), 2, 14);
-  fill(ctx, x - 3, y - 28, 6, 28, "#4A2A10");
-  fill(ctx, x - 1, y - 28, 3, 28, "#5E3618");
-  const sw = Math.sin(t * 1.25) * 2;
-  ([
-    [x - 15 + sw, y - 38, 30, 12, "#163816"],
-    [x - 13 + sw, y - 40, 26, 10, "#1E5020"],
-    [x - 11 + sw * 0.8, y - 50, 22, 14, "#267028"],
-    [x - 9 + sw * 0.8, y - 52, 18, 12, "#308030"],
-    [x - 6 + sw * 0.6, y - 62, 12, 14, "#3A9038"],
-    [x - 4 + sw * 0.5, y - 66, 8, 10, "#46A042"],
-    [x - 2 + sw * 0.3, y - 74, 4, 8, "#55B850"],
-  ] as [number, number, number, number, string][]).forEach(([lx, ly, lw, lh, c]) => fill(ctx, lx, ly, lw, lh, c));
-  const ga = 0.055 + Math.sin(t * 1.6) * 0.025;
-  ctx.fillStyle = `rgba(80,200,80,${ga})`;
-  ctx.fillRect(fx(x - 28), fx(y - 82), 56, 66);
-  [{ ox: -22, oy: -55, ph: 0 }, { ox: 24, oy: -50, ph: 1.1 },
-  { ox: -16, oy: -32, ph: 2.2 }, { ox: 20, oy: -28, ph: 1.7 }, { ox: 4, oy: -80, ph: 0.6 }]
-    .forEach(({ ox, oy, ph }) => {
-      const na = 0.55 + Math.sin(t + ph) * 0.35;
-      ctx.fillStyle = `rgba(100,230,110,${na})`;
-      ctx.fillRect(fx(x + ox + Math.sin(t * 0.85 + ph) * 3.5) - 2,
-        fx(y + oy + Math.cos(t * 0.65 + ph) * 2.5) - 2, 4, 4);
-    });
-}
-
-function renderScene(ctx: Ctx, t: number) {
-  ctx.clearRect(0, 0, CW, CH);
-  drawSky(ctx, CH);
-  [[18 + Math.sin(t * .042) * 4, 16, 54], [128 + Math.sin(t * .053 + 1) * 3, 7, 70],
-  [255 + Math.cos(t * .038 + .5) * 5, 20, 46], [362 + Math.sin(t * .047 + 2.1) * 3, 11, 62]]
-    .forEach(([cx, cy, s]) => drawCloud(ctx, cx, cy, s));
-  [[CW * .06, CH * .33], [CW * .20, CH * .27], [CW * .36, CH * .31], [CW * .52, CH * .24],
-  [CW * .67, CH * .29], [CW * .82, CH * .26], [CW * .94, CH * .34]]
-    .forEach(([px, py]) => drawMtn(ctx, px, py, CH * .64, "#163020", "#0E2018"));
-  [[CW * .13, CH * .39], [CW * .32, CH * .32], [CW * .58, CH * .35], [CW * .80, CH * .31]]
-    .forEach(([px, py]) => drawMtn(ctx, px, py, CH * .645, "#1E3C2C", "#152A20", true));
-  [{ x: 12, s: 36 }, { x: 38, s: 45 }, { x: 66, s: 38 }, { x: 93, s: 49 }, { x: 124, s: 41 }, { x: 152, s: 37 }, { x: 180, s: 50 },
-  { x: 302, s: 49 }, { x: 332, s: 38 }, { x: 360, s: 46 }, { x: 390, s: 37 }, { x: 418, s: 52 }, { x: 450, s: 41 }]
-    .forEach(({ x, s }) => drawTree(ctx, x, fx(CH * .80), s));
-  drawGrass(ctx, CW, CH, t);
-  [{ x: 26, c: "#E090C8" }, { x: 60, c: "#C070B8" }, { x: 100, c: "#E090C8" }, { x: 140, c: "#F0D060" },
-  { x: 168, c: "#D080C0" }, { x: 308, c: "#E090C8" }, { x: 346, c: "#F0D060" }, { x: 382, c: "#C070B8" },
-  { x: 418, c: "#E090C8" }, { x: 456, c: "#F0D060" }]
-    .forEach(({ x, c }) => drawFlower(ctx, x, fx(CH * .847 + Math.sin(t * .75 + x * .085) * 1.5), c));
-  drawSapling(ctx, fx(CW * .47), fx(CH * .857), t);
-}
-
-const PixelScene = () => {
-  const ref = useRef<HTMLCanvasElement>(null);
-  useEffect(() => {
-    const canvas = ref.current; if (!canvas) return;
-    const ctx = canvas.getContext("2d"); if (!ctx) return;
-    ctx.imageSmoothingEnabled = false;
-    let raf: number;
-    const t0 = performance.now();
-    const loop = () => { renderScene(ctx, (performance.now() - t0) / 1000); raf = requestAnimationFrame(loop); };
-    loop();
-    return () => cancelAnimationFrame(raf);
-  }, []);
-  return <canvas ref={ref} width={CW} height={CH}
-    className="absolute inset-0 w-full h-full" style={{ imageRendering: "pixelated" }} />;
-};
 
 // ─── Nav (fixed — stays on top during scroll) ─────────────────────────────────
 const Nav = () => (
@@ -215,7 +61,7 @@ const StatsTicker = () => (
   <div className="overflow-hidden py-3 border-y-4 border-[#3A9018]" style={{ background: "#6ED640" }}>
     <div className="flex animate-marquee whitespace-nowrap">
       {[...ticks, ...ticks].map((t, i) => (
-        <span key={i} className="mx-10 text-stone-900" style={{ fontFamily: "'Press Start 2P',monospace", fontSize: "9px" }}>
+        <span key={i} className="mx-10 text-stone-900" style={{ fontFamily: "'Press Start 2P',monospace", fontSize: "13px" }}>
           {t}
         </span>
       ))}
@@ -287,7 +133,7 @@ const PathsSection = () => (
     <div className="mx-auto max-w-6xl">
       <div className="mb-12 flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <p className="text-[#6ED640] mb-3 tracking-widest uppercase" style={{ fontFamily: "'Press Start 2P',monospace", fontSize: "9px" }}>
+          <p className="text-[#6ED640] mb-3 tracking-widest uppercase" style={{ fontFamily: "'Press Start 2P',monospace", fontSize: "13px" }}>
             ▸ Pick Your Path
           </p>
           <h2 className="mb-6" style={{ fontFamily: "'Press Start 2P',monospace", fontSize: "18px", lineHeight: 1.7, color: "#78E04A", textShadow: "2px 2px 0 #1E6010, 3px 3px 0 #0A3808" }}>
@@ -338,7 +184,7 @@ const HowItWorks = () => (
   <section className="bg-[#080e1a] px-6 py-20 border-t border-stone-800">
     <div className="mx-auto max-w-5xl">
       <div className="text-center mb-14">
-        <p className="text-[#6ED640] mb-3 tracking-widest uppercase" style={{ fontFamily: "'Press Start 2P',monospace", fontSize: "9px" }}>
+        <p className="text-[#6ED640] mb-3 tracking-widest uppercase" style={{ fontFamily: "'Press Start 2P',monospace", fontSize: "13px" }}>
           ▸ How It Works
         </p>
         <h2 className="mb-6" style={{ fontFamily: "'Press Start 2P',monospace", fontSize: "16px", lineHeight: 1.8, color: "#78E04A", textShadow: "2px 2px 0 #1E6010, 3px 3px 0 #0A3808" }}>
@@ -388,7 +234,7 @@ const TreeViz = () => {
           <motion.div initial={{ opacity: 0, x: -20 }} animate={inView ? { opacity: 1, x: 0 } : {}}
             transition={{ duration: .7 }}>
             <p className="text-[#6ED640] mb-3 tracking-widest uppercase"
-              style={{ fontFamily: "'Press Start 2P',monospace", fontSize: "9px" }}>▸ Skill Tree</p>
+              style={{ fontFamily: "'Press Start 2P',monospace", fontSize: "13px" }}>▸ Skill Tree</p>
             <h2 className="mb-6" style={{ fontFamily: "'Press Start 2P',monospace", fontSize: "15px", lineHeight: 1.8, color: "#78E04A", textShadow: "2px 2px 0 #1E6010, 3px 3px 0 #0A3808" }}>
               See every skill.<br />Know exactly<br />what&apos;s next.
             </h2>
@@ -459,7 +305,7 @@ const XpBar = ({ label, pct, color, delay }: { label: string; pct: number; color
     <div ref={ref} className="mb-5">
       <div className="flex justify-between mb-1.5">
         <span className="text-stone-300 text-xs">{label}</span>
-        <span className="text-xs" style={{ color, fontFamily: "'Press Start 2P',monospace", fontSize: "8px" }}>{pct}%</span>
+        <span className="text-xs" style={{ color, fontFamily: "'Press Start 2P',monospace", fontSize: "12px" }}>{pct}%</span>
       </div>
       <div className="h-3 w-full rounded-none" style={{ background: "#162238", border: "1px solid #1e3858" }}>
         <motion.div className="h-full" style={{ background: color }}
@@ -489,7 +335,7 @@ const GamificationSection = () => {
           {/* XP / Level card */}
           <motion.div initial={{ opacity: 0, y: 20 }} animate={inView ? { opacity: 1, y: 0 } : {}} transition={{ duration: .7 }}>
             <p className="text-[#6ED640] mb-3 tracking-widest uppercase"
-              style={{ fontFamily: "'Press Start 2P',monospace", fontSize: "9px" }}>▸ Leveling System</p>
+              style={{ fontFamily: "'Press Start 2P',monospace", fontSize: "13px" }}>▸ Leveling System</p>
             <h2 className="mb-8" style={{ fontFamily: "'Press Start 2P',monospace", fontSize: "15px", lineHeight: 1.8, color: "#78E04A", textShadow: "2px 2px 0 #1E6010, 3px 3px 0 #0A3808" }}>
               Every skill earns<br />you XP.
             </h2>
@@ -523,7 +369,7 @@ const GamificationSection = () => {
           <motion.div initial={{ opacity: 0, y: 20 }} animate={inView ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: .7, delay: .2 }}>
             <p className="text-[#6ED640] mb-3 tracking-widest uppercase"
-              style={{ fontFamily: "'Press Start 2P',monospace", fontSize: "9px" }}>▸ Achievements</p>
+              style={{ fontFamily: "'Press Start 2P',monospace", fontSize: "13px" }}>▸ Achievements</p>
             <h2 className="mb-8" style={{ fontFamily: "'Press Start 2P',monospace", fontSize: "15px", lineHeight: 1.8, color: "#78E04A", textShadow: "2px 2px 0 #1E6010, 3px 3px 0 #0A3808" }}>
               Earn badges.<br />Build your story.
             </h2>
@@ -538,7 +384,7 @@ const GamificationSection = () => {
                   <span className="text-2xl animate-float" style={{ animationDelay: `${i * .4}s` }}>{b.emoji}</span>
                   <span className="text-center" style={{
                     color: b.color, fontFamily: "'Press Start 2P',monospace",
-                    fontSize: "7px", lineHeight: 1.7
+                    fontSize: "11px", lineHeight: 1.7
                   }}>
                     {b.label}
                   </span>
@@ -573,7 +419,7 @@ const BalanceSection = () => {
       <div className="mx-auto max-w-5xl">
         <div className="text-center mb-14">
           <p className="text-[#6ED640] mb-3 tracking-widest uppercase"
-            style={{ fontFamily: "'Press Start 2P',monospace", fontSize: "9px" }}>▸ Balance System</p>
+            style={{ fontFamily: "'Press Start 2P',monospace", fontSize: "13px" }}>▸ Balance System</p>
           <h2 className="mb-4" style={{ fontFamily: "'Press Start 2P',monospace", fontSize: "16px", lineHeight: 1.8, color: "#78E04A", textShadow: "2px 2px 0 #1E6010, 3px 3px 0 #0A3808" }}>
             School. Work. Skills.<br />All in balance.
           </h2>
@@ -713,7 +559,7 @@ const Footer = () => (
           { heading: "Company", links: ["About", "Careers", "Press", "Contact"] },
         ].map(col => (
           <div key={col.heading}>
-            <PX className="text-stone-500 block mb-4" style={{ fontSize: "8px" }}>{col.heading}</PX>
+            <PX className="text-stone-500 block mb-4" style={{ fontSize: "12px" }}>{col.heading}</PX>
             <ul className="space-y-2.5">
               {col.links.map(l => (
                 <li key={l}><a href="#" className="text-stone-400 text-xs hover:text-white transition-colors">{l}</a></li>
@@ -784,9 +630,16 @@ export const RootedLanding = () => {
             </div>
           }
         >
-          {/* Pixel art scene lives inside the tablet */}
-          <div className="relative w-full h-full">
-            <PixelScene />
+          {/* Product screenshot inside the hero tablet frame */}
+          <div className="relative h-full w-full bg-[#080e1a]">
+            <Image
+              src="/images/landing-skill-tree.png"
+              alt="Rooted Skill Tree — Software Engineer path with nodes, XP, and progress"
+              fill
+              priority
+              className="object-cover object-top"
+              sizes="(max-width: 768px) 100vw, 896px"
+            />
           </div>
         </ContainerScroll>
       </div>

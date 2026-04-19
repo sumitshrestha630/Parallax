@@ -41,7 +41,7 @@ export function ScheduleSetupCard({ events, onAdd, onEditEvent }: ScheduleSetupC
                 onClick={() => onEditEvent(e)}
                 className="text-left transition-opacity hover:opacity-90"
                 style={{
-                  fontFamily: PF, fontSize: "6px",
+                  fontFamily: PF, fontSize: "10px",
                   background: "#0d1628",
                   border: `2px solid #1a2744`,
                   color: "#94a3b8",

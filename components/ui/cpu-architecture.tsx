@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect, useMemo, useCallback, useId } from 
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import type { UserSkill } from "@/types/dashboard";
-import { CPU_SKILL_DEFAULTS } from "@/lib/dashboard/cpu-map-defaults";
+import { normalizeCpuFocusSkillKey } from "@/lib/dashboard/cpu-map-defaults";
 import { finiteOr, skillsToNodes } from "@/lib/dashboard/dashboard-service";
 
 const PF = "'Press Start 2P', monospace";
@@ -58,19 +58,6 @@ interface SkillNode {
   xp?:          number;
   dashDuration: string;
 }
-
-/** Fallback map when no Supabase rows — keeps the same geometry as {@link CPU_SKILL_DEFAULTS}. */
-const SKILL_NODES: SkillNode[] = CPU_SKILL_DEFAULTS.map(def => ({
-  id:           def.id,
-  label:        def.label,
-  ex:           def.ex,
-  ey:           def.ey,
-  path:         def.path,
-  color:        def.color,
-  dashDuration: def.dashDuration,
-  state:        def.id === "frontend" ? "active" : "locked",
-  ...(def.id === "frontend" ? { xp: 0 as number } : {}),
-}));
 
 /** Highlights one skill node (career focus); pulls XP for that skill from Supabase when present. */
 function applyCareerFocusUnlock<T extends { id: string; state: "active" | "locked"; xp?: number }>(
@@ -339,7 +326,7 @@ interface CpuArchitectureProps {
   maxXp?:        number;
   /** Sum of all skill XP — shown under the bar when set. */
   totalSkillXp?: number;
-  /** When provided, overrides the static SKILL_NODES with live Supabase data. */
+  /** Supabase rows merged with the canonical 8-route map ({@link skillsToNodes}). */
   userSkills?: UserSkill[];
   className?:    string;
 }
@@ -363,12 +350,13 @@ export function CpuArchitecture({
   const openDetail  = useCallback((id: string) => setDetailId(id), []);
   const closeDetail = useCallback(() => setDetailId(null), []);
 
+  const focusKey = normalizeCpuFocusSkillKey(focusSkillKey);
+
   // Live layout from Supabase when present; one node stays "active" as the user's career focus.
   const activeNodes = useMemo(() => {
-    const raw =
-      userSkills && userSkills.length > 0 ? skillsToNodes(userSkills) : SKILL_NODES;
-    return applyCareerFocusUnlock(raw, focusSkillKey, userSkills);
-  }, [userSkills, focusSkillKey]);
+    const raw = skillsToNodes(userSkills ?? []);
+    return applyCareerFocusUnlock(raw, focusKey, userSkills);
+  }, [userSkills, focusKey]);
 
   const detailNode = useMemo(
     () => (detailId ? activeNodes.find(n => n.id === detailId) ?? null : null),
@@ -427,7 +415,7 @@ export function CpuArchitecture({
   return (
     <div
       ref={containerRef}
-      className={cn("relative w-full h-full bg-[#020617]", className)}
+      className={cn("relative h-full min-h-[min(55vh,520px)] w-full bg-[#020617]", className)}
     >
       <AnimatePresence>
         {detailNode && (
@@ -491,7 +479,7 @@ export function CpuArchitecture({
                 fill="none"
                 stroke={node.color}
                 strokeWidth={0.5}
-                strokeOpacity={active ? 0.22 : 0.08}
+                strokeOpacity={active ? 0.28 : 0.18}
                 pointerEvents="stroke"
               />
               {active && (

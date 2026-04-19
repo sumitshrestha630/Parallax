@@ -116,7 +116,7 @@ export function WeeklyCalendar({ events, cellMap, onEditEvent }: WeeklyCalendarP
                 className="text-center py-2 sticky top-0 z-10"
                 style={{
                   fontFamily: "'Press Start 2P', monospace",
-                  fontSize: "7px",
+                  fontSize: "11px",
                   color: isToday ? "#6ED640" : "#94a3b8",
                   background: isToday ? "rgba(110,214,64,0.08)" : "#04080e",
                   borderBottom: `2px solid ${CARD_BORDER}`,
@@ -187,16 +187,16 @@ export function WeeklyCalendar({ events, cellMap, onEditEvent }: WeeklyCalendarP
                         }}
                         className="hover:brightness-110 active:scale-[0.99]"
                       >
-                        <span style={{ fontFamily: PF, fontSize: "5px", opacity: 0.85, display: "block" }}>
+                        <span style={{ fontFamily: PF, fontSize: "13px", opacity: 0.85, display: "block" }}>
                           {TYPE_ICON[ev.type]} {ev.type.toUpperCase()}
                         </span>
                         <span
                           className="block truncate leading-tight"
-                          style={{ fontFamily: PF, fontSize: "6px", marginTop: "3px" }}
+                          style={{ fontFamily: PF, fontSize: "10px", marginTop: "3px" }}
                         >
                           {ev.title}
                         </span>
-                        <span style={{ fontFamily: PF, fontSize: "5px", opacity: 0.75, marginTop: "2px", display: "block" }}>
+                        <span style={{ fontFamily: PF, fontSize: "13px", opacity: 0.75, marginTop: "2px", display: "block" }}>
                           {ev.start_time.slice(0, 5)}–{ev.end_time.slice(0, 5)}
                         </span>
                       </button>
@@ -212,7 +212,7 @@ export function WeeklyCalendar({ events, cellMap, onEditEvent }: WeeklyCalendarP
         className="flex flex-wrap gap-4 px-4 py-3 flex-shrink-0"
         style={{ borderTop: `2px solid ${CARD_BORDER}`, background: "#030610" }}
       >
-        <span style={{ ...LABEL_STYLE, color: "#64748b", fontSize: "6px" }}>Legend</span>
+        <span style={{ ...LABEL_STYLE, color: "#64748b", fontSize: "10px" }}>Legend</span>
         {(
           [
             ["busy", "Busy / class+work", CELL.busy.background as string],

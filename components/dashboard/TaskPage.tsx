@@ -19,7 +19,7 @@ const BTN = (
   shadow = "#1E6010"
 ): React.CSSProperties => ({
   fontFamily: PF,
-  fontSize: "9px",
+  fontSize: "13px",
   background: bg,
   border: `3px solid ${border}`,
   boxShadow: `0 4px 0 ${shadow}, 0 6px 0 rgba(0,0,0,0.35)`,
@@ -33,7 +33,7 @@ function badge(text: string, color: string) {
     <span
       style={{
         fontFamily: PF,
-        fontSize: "6px",
+        fontSize: "10px",
         padding: "2px 6px",
         border: `1px solid ${color}55`,
         background: `${color}22`,
@@ -277,7 +277,7 @@ export function TaskPage({
                   className="rounded-sm border border-[#1e3858] bg-[#0d1a2e] px-3 py-2"
                 >
                   <summary className="cursor-pointer list-none flex flex-wrap items-center gap-2 py-1">
-                    <span style={{ fontFamily: PF, fontSize: "8px", color: "#cbd5e1" }}>{st.title}</span>
+                    <span style={{ fontFamily: PF, fontSize: "12px", color: "#cbd5e1" }}>{st.title}</span>
                     {badge(st.difficulty.toUpperCase(), st.difficulty === "easy" ? "#6ED640" : st.difficulty === "medium" ? "#FBBF24" : "#F472B6")}
                     {badge(`+${st.xp_reward} XP`, "#6ED640")}
                     {badge(`${st.estimated_minutes} min`, "#94a3b8")}
@@ -300,7 +300,7 @@ export function TaskPage({
         )}
 
         <div className="flex flex-wrap gap-2 items-center" style={{ ...CARD, padding: "12px" }}>
-          <span style={{ fontFamily: PF, fontSize: "7px", color: "#94a3b8" }}>VIEW</span>
+          <span style={{ fontFamily: PF, fontSize: "11px", color: "#94a3b8" }}>VIEW</span>
           <button
             type="button"
             disabled={!!urlHandoff?.skillLane}
@@ -321,7 +321,7 @@ export function TaskPage({
             All
           </button>
 
-          <span className="ml-2" style={{ fontFamily: PF, fontSize: "7px", color: "#94a3b8" }}>STATUS</span>
+          <span className="ml-2" style={{ fontFamily: PF, fontSize: "11px", color: "#94a3b8" }}>STATUS</span>
           {(["all", "available", "in_progress", "completed"] as const).map(s => (
             <button
               key={s}
@@ -333,7 +333,7 @@ export function TaskPage({
             </button>
           ))}
 
-          <span className="ml-2" style={{ fontFamily: PF, fontSize: "7px", color: "#94a3b8" }}>DIFFICULTY</span>
+          <span className="ml-2" style={{ fontFamily: PF, fontSize: "11px", color: "#94a3b8" }}>DIFFICULTY</span>
           {(["all", "beginner", "intermediate", "advanced"] as const).map(d => (
             <button
               key={d}
@@ -397,7 +397,7 @@ export function TaskPage({
                         }}
                         style={{
                           fontFamily: PF,
-                          fontSize: "8px",
+                          fontSize: "12px",
                           color: "#cbd5e1",
                           background: "none",
                           border: "none",
@@ -406,7 +406,7 @@ export function TaskPage({
                           padding: 0,
                         }}
                       >
-                        {task.title} <span style={{ color: "#475569", fontSize: "7px" }}>(open)</span>
+                        {task.title} <span style={{ color: "#475569", fontSize: "11px" }}>(open)</span>
                       </button>
                       {badge(userTask.status.replace("_", " "), statusColor(userTask.status))}
                       {task.difficulty ? badge(task.difficulty, "#F472B6") : null}
@@ -420,7 +420,7 @@ export function TaskPage({
                       <div className="flex-1 h-2" style={{ background: "#162238", border: "1px solid #1e3858" }}>
                         <div style={{ height: "100%", width: `${Math.max(0, Math.min(100, userTask.progress ?? 0))}%`, background: "#6ED640" }} />
                       </div>
-                      <span style={{ fontFamily: PF, fontSize: "7px", color: "#64748b" }}>{userTask.progress ?? 0}%</span>
+                      <span style={{ fontFamily: PF, fontSize: "11px", color: "#64748b" }}>{userTask.progress ?? 0}%</span>
                     </div>
                   </div>
 
@@ -463,7 +463,7 @@ export function TaskPage({
                       </>
                     )}
                     {userTask.status === "completed" && (
-                      <span style={{ fontFamily: PF, fontSize: "7px", color: "#6ED640" }}>DONE</span>
+                      <span style={{ fontFamily: PF, fontSize: "11px", color: "#6ED640" }}>DONE</span>
                     )}
                   </div>
                 </div>

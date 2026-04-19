@@ -19,19 +19,19 @@ export function InsightsPanel({ insight }: InsightsPanelProps) {
       </div>
       <div className="p-4 flex flex-col gap-4 overflow-y-auto flex-1">
         <div>
-          <p style={{ ...LABEL_STYLE, color: "#64748b", fontSize: "6px", marginBottom: "6px" }}>ACADEMIC LOAD</p>
+          <p style={{ ...LABEL_STYLE, color: "#64748b", fontSize: "10px", marginBottom: "6px" }}>ACADEMIC LOAD</p>
           <p className="text-sm" style={{ color: "#cbd5e1" }}>
             <strong style={{ color: "#FBBF24" }}>{insight.heavyAcademicDays}</strong> heavy school days (3h+ class)
           </p>
         </div>
         <div>
-          <p style={{ ...LABEL_STYLE, color: "#64748b", fontSize: "6px", marginBottom: "6px" }}>FREE EVENINGS</p>
+          <p style={{ ...LABEL_STYLE, color: "#64748b", fontSize: "10px", marginBottom: "6px" }}>FREE EVENINGS</p>
           <p className="text-sm" style={{ color: "#cbd5e1" }}>
             <strong style={{ color: "#6ED640" }}>{insight.freeEvenings}</strong> open evening hours (weekdays)
           </p>
         </div>
         <div>
-          <p style={{ ...LABEL_STYLE, color: "#64748b", fontSize: "6px", marginBottom: "6px" }}>BEST WINDOWS</p>
+          <p style={{ ...LABEL_STYLE, color: "#64748b", fontSize: "10px", marginBottom: "6px" }}>BEST WINDOWS</p>
           <ul className="space-y-1">
             {insight.bestLearningWindows.map((w, i) => (
               <li key={i} className="text-xs" style={{ color: "#94a3b8" }}>• {w}</li>
@@ -40,7 +40,7 @@ export function InsightsPanel({ insight }: InsightsPanelProps) {
         </div>
         {insight.avoidDays.length > 0 && (
           <div>
-            <p style={{ ...LABEL_STYLE, color: "#64748b", fontSize: "6px", marginBottom: "6px" }}>LIGHTEN UP ON</p>
+            <p style={{ ...LABEL_STYLE, color: "#64748b", fontSize: "10px", marginBottom: "6px" }}>LIGHTEN UP ON</p>
             <p className="text-xs" style={{ color: "#f87171" }}>
               {insight.avoidDays.join(", ")}
             </p>

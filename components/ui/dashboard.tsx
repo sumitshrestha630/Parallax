@@ -12,6 +12,7 @@ import { CpuArchitecture } from "@/components/ui/cpu-architecture";
 import { DashboardRenderer } from "@/components/dashboard/DashboardRenderer";
 import { BalanceView } from "@/components/balance/BalanceView";
 import { TaskPage, type SkillTreeTaskFocus } from "@/components/dashboard/TaskPage";
+import { ResumeAnalyzer } from "@/components/resume/ResumeAnalyzer";
 import type { DashboardData, UserSkill } from "@/types/dashboard";
 import { DashboardSkillsSyncProvider } from "@/components/dashboard/dashboard-skills-sync";
 import { fetchUserSkillsClient } from "@/lib/dashboard/fetch-user-skills-client";
@@ -22,6 +23,11 @@ import {
   resolveDashboardCareer,
   sidebarTasksForTrack,
 } from "@/lib/dashboard/career-dashboard";
+import {
+  parseSkillTreePersisted,
+  nodesFromProgress,
+  computeReadiness,
+} from "@/lib/skill-tree-data";
 
 const XP_PER_LEVEL = 200;
 
@@ -34,7 +40,7 @@ const PIXEL_BTN_STYLE = (
   shadow = "#1E6010"
 ): React.CSSProperties => ({
   fontFamily: PF,
-  fontSize: "9px",
+  fontSize: "13px",
   background: bg,
   border: `3px solid ${border}`,
   boxShadow: `0 4px 0 ${shadow}, 0 6px 0 rgba(0,0,0,0.4)`,
@@ -51,7 +57,7 @@ const HEADING_STYLE: React.CSSProperties = {
 
 const LABEL_STYLE: React.CSSProperties = {
   fontFamily: PF,
-  fontSize: "8px",
+  fontSize: "12px",
   color: "#6ED640",
   letterSpacing: "0.15em",
   textTransform: "uppercase",
@@ -64,7 +70,7 @@ const DIFF_COLOR: Record<string, string> = {
 };
 
 
-const NAV_TABS = ["Dashboard", "Skill Tree", "Tasks", "Balance"] as const;
+const NAV_TABS = ["Dashboard", "Skill Tree", "Tasks", "Balance", "Resume"] as const;
 type NavTab = typeof NAV_TABS[number];
 const TASK_TABS = ["Upcoming", "Tasks", "Completed"] as const;
 type TaskTab = typeof TASK_TABS[number];
@@ -163,6 +169,14 @@ export function Dashboard({ user, dashboardData }: DashboardProps) {
   const levelProgressPct =
     XP_PER_LEVEL > 0 ? Math.min(100, Math.max(0, (totalXp % XP_PER_LEVEL) / XP_PER_LEVEL) * 100) : 0;
 
+  /** % of required skill tree nodes completed for this career track */
+  const careerReadinessPct = useMemo(() => {
+    const persisted = parseSkillTreePersisted(dashboardData?.state?.metadata as Record<string, unknown> | null);
+    const completedIds = persisted?.tracks?.[careerRes.track.id]?.completed ?? [];
+    const nodes = nodesFromProgress(careerRes.track.nodes, completedIds);
+    return computeReadiness(nodes);
+  }, [dashboardData?.state?.metadata, careerRes.track]);
+
   /** Supabase `user_dashboard_items` — when present, show registry widgets instead of the static career map only. */
   const hasDashboardWidgets = (dashboardData?.items ?? []).some(i => i.visible);
 
@@ -226,7 +240,7 @@ const signOut = async () => { await createClient().auth.signOut(); router.push("
           style={{ borderLeft: "2px solid #1a2744", background: "rgba(6,12,24,0.75)" }}
           title="Total XP and level from all skills — matches the CPU on your career map"
         >
-          <div className="flex items-center gap-3 flex-wrap" style={{ fontFamily: PF, fontSize: "7px" }}>
+          <div className="flex items-center gap-3 flex-wrap" style={{ fontFamily: PF, fontSize: "11px" }}>
             <span style={{ color: "#64748b", whiteSpace: "nowrap" }}>
               LV <span style={{ color: "#78E04A" }}>{level}</span>
             </span>
@@ -246,13 +260,13 @@ const signOut = async () => { await createClient().auth.signOut(); router.push("
                 style={{ background: "linear-gradient(90deg,#3A9018,#6ED640)" }}
               />
             </div>
-            <span style={{ fontFamily: PF, fontSize: "5px", color: "#475569", flexShrink: 0 }}>
+            <span style={{ fontFamily: PF, fontSize: "13px", color: "#475569", flexShrink: 0 }}>
               {xpIntoLevel}/{XP_PER_LEVEL}
             </span>
           </div>
         </div>
 
-        <div className="flex sm:hidden items-center flex-shrink-0 px-2" style={{ fontFamily: PF, fontSize: "6px", color: "#64748b" }}>
+        <div className="flex sm:hidden items-center flex-shrink-0 px-2" style={{ fontFamily: PF, fontSize: "10px", color: "#64748b" }}>
           LV <span style={{ color: "#78E04A", marginRight: 6 }}>{level}</span>
           <span style={{ color: "#cbd5e1" }}>{totalXp}</span>
           <span style={{ color: "#475569" }}> XP</span>
@@ -278,7 +292,7 @@ const signOut = async () => { await createClient().auth.signOut(); router.push("
         }
 
         <button onClick={signOut} className="ml-3 transition-colors"
-          style={{ fontFamily: PF, fontSize: "7px", color: "#475569", background: "none", border: "none", cursor: "pointer" }}
+          style={{ fontFamily: PF, fontSize: "11px", color: "#475569", background: "none", border: "none", cursor: "pointer" }}
           onMouseEnter={e => (e.currentTarget.style.color = "#6ED640")}
           onMouseLeave={e => (e.currentTarget.style.color = "#475569")}>
           Sign out
@@ -290,6 +304,16 @@ const signOut = async () => { await createClient().auth.signOut(); router.push("
 
         {navTab === "Balance" ? (
           <BalanceView user={user} />
+        ) : navTab === "Resume" ? (
+          <ResumeAnalyzer
+            onViewNode={(nodeId) => {
+              setNavTab("Skill Tree");
+              // Small delay so the Skill Tree tab mounts before the node event
+              setTimeout(() => {
+                setTasksFromSkillTree({ nodeId, skillKey: nodeId.split("_")[0] ?? nodeId, nodeLabel: nodeId.replace(/_/g, " ") });
+              }, 100);
+            }}
+          />
         ) : navTab === "Tasks" ? (
           <TaskPage
             onSkillsUpdated={syncSkillsFromDb}
@@ -328,7 +352,7 @@ const signOut = async () => { await createClient().auth.signOut(); router.push("
                 xp={xpIntoLevel}
                 maxXp={XP_PER_LEVEL}
                 totalSkillXp={totalXp}
-                userSkills={skills.length > 0 ? skills : undefined}
+                userSkills={skills}
               />
             )}
           </div>
@@ -338,7 +362,7 @@ const signOut = async () => { await createClient().auth.signOut(); router.push("
             style={{ background: "#060c18", borderTop: "2px solid #1a2744", height: "210px" }}>
             <div className="flex items-center justify-between mb-3">
               <span style={{ ...LABEL_STYLE, color: "#FBBF24" }}>★ Most Recommended</span>
-              <button style={{ fontFamily: PF, fontSize: "7px", color: "#475569", background: "none", border: "none", cursor: "pointer" }}>
+              <button style={{ fontFamily: PF, fontSize: "11px", color: "#475569", background: "none", border: "none", cursor: "pointer" }}>
                 View All &gt;
               </button>
             </div>
@@ -354,13 +378,13 @@ const signOut = async () => { await createClient().auth.signOut(); router.push("
                   <div className="flex items-center gap-2 mt-0.5">
                     <span style={{
                       background: DIFF_COLOR[task.diff] + "22", color: DIFF_COLOR[task.diff],
-                      fontFamily: PF, fontSize: "6px", padding: "2px 5px",
+                      fontFamily: PF, fontSize: "10px", padding: "2px 5px",
                       border: `1px solid ${DIFF_COLOR[task.diff]}44`,
                     }}>{task.diff}</span>
                     <span className="text-xs" style={{ color: "#475569" }}>⏱ +{task.mins} min</span>
                   </div>
                 </div>
-                <span style={{ fontFamily: PF, fontSize: "8px", color: "#6ED640", flexShrink: 0 }}>+{task.xp} XP</span>
+                <span style={{ fontFamily: PF, fontSize: "12px", color: "#6ED640", flexShrink: 0 }}>+{task.xp} XP</span>
                 {i === 0 && (
                   <button className="flex-shrink-0 hover:brightness-110 transition-all active:scale-95"
                     style={PIXEL_BTN_STYLE()}>
@@ -402,29 +426,46 @@ const signOut = async () => { await createClient().auth.signOut(); router.push("
                 {/* Level badge */}
                 <div className="absolute -bottom-2 -right-2 flex items-center justify-center"
                   style={{ background: "#FBBF24", border: "2px solid #0a1428", width: 28, height: 28,
-                    fontFamily: PF, fontSize: "7px", color: "#0a1428" }}>
+                    fontFamily: PF, fontSize: "11px", color: "#0a1428" }}>
                   {level}
                 </div>
               </div>
 
               <span style={{ fontFamily: PF, fontSize: "10px", color: "#f1f5f9", marginBottom: "4px" }}>{name}</span>
               {goalLabel && (
-                <span className="text-xs" style={{ color: "#6ED640", fontFamily: PF, fontSize: "6px",
+                <span className="text-xs" style={{ color: "#6ED640", fontFamily: PF, fontSize: "10px",
                   background: "rgba(110,214,64,0.1)", border: "1px solid rgba(110,214,64,0.25)",
                   padding: "3px 8px", marginBottom: "2px" }}>
                   {goalLabel}
                 </span>
               )}
               <span className="text-xs" style={{ color: "#475569" }}>{careerLabel}</span>
-            </div>
 
-            <div className="mb-3">
-              <span style={{ ...LABEL_STYLE, fontSize: "7px", color: "#475569", letterSpacing: "0.08em" }}>
-                SKILL PROGRESS
-              </span>
-              <p className="text-xs mt-1 leading-snug" style={{ color: "#475569" }}>
-                {careerRes.track.mentorRecommendation}
-              </p>
+              {/* Career journey progress bar */}
+              <div className="w-full mt-3">
+                <div className="flex justify-between mb-1">
+                  <span style={{ fontFamily: PF, fontSize: "9px", color: "#334155" }}>Career Progress</span>
+                  <span style={{ fontFamily: PF, fontSize: "9px", color: careerReadinessPct >= 80 ? "#6ED640" : careerReadinessPct >= 40 ? "#FBBF24" : "#475569" }}>
+                    {careerReadinessPct}%
+                  </span>
+                </div>
+                <div className="h-2 w-full rounded-sm overflow-hidden" style={{ background: "#162238", border: "1px solid #1e3858" }}>
+                  <motion.div
+                    key={careerReadinessPct}
+                    className="h-full"
+                    initial={{ width: 0 }}
+                    animate={{ width: `${careerReadinessPct}%` }}
+                    transition={{ duration: 1.2, delay: 0.5 }}
+                    style={{
+                      background: careerReadinessPct >= 80
+                        ? "linear-gradient(90deg,#3A9018,#6ED640)"
+                        : careerReadinessPct >= 40
+                        ? "linear-gradient(90deg,#b45309,#FBBF24)"
+                        : "linear-gradient(90deg,#1e3a6a,#3b82f6)",
+                    }}
+                  />
+                </div>
+              </div>
             </div>
 
             {/* XP bar: width = (sum of skill tree XP mod 200) / 200 — same pool as Skill Tree */}
@@ -439,8 +480,8 @@ const signOut = async () => { await createClient().auth.signOut(); router.push("
               />
             </div>
             <div className="flex justify-between mt-1.5">
-              <span style={{ fontFamily: PF, fontSize: "6px", color: "#334155" }}>{totalXp} XP</span>
-              <span style={{ fontFamily: PF, fontSize: "6px", color: "#334155" }}>
+              <span style={{ fontFamily: PF, fontSize: "10px", color: "#334155" }}>{totalXp} XP</span>
+              <span style={{ fontFamily: PF, fontSize: "10px", color: "#334155" }}>
                 {xpIntoLevel}/{XP_PER_LEVEL} · Lv {level}
               </span>
             </div>
@@ -450,7 +491,7 @@ const signOut = async () => { await createClient().auth.signOut(); router.push("
           <div className="p-5" style={{ borderBottom: "2px solid #1a2744" }}>
             <div className="flex items-center justify-between mb-2">
               <span style={{ ...LABEL_STYLE, color: "#FBBF24" }}>★ Balance Tip</span>
-              <button style={{ fontFamily: PF, fontSize: "7px", color: "#475569", background: "none", border: "none", cursor: "pointer" }}>
+              <button style={{ fontFamily: PF, fontSize: "11px", color: "#475569", background: "none", border: "none", cursor: "pointer" }}>
                 View All &gt;
               </button>
             </div>
@@ -479,7 +520,7 @@ const signOut = async () => { await createClient().auth.signOut(); router.push("
                   <button key={tab} onClick={() => setTaskTab(tab)}
                     className="relative flex-1 py-2 text-center"
                     style={{
-                      fontFamily: PF, fontSize: "6px",
+                      fontFamily: PF, fontSize: "10px",
                       color: active ? "#e2e8f0" : "#475569",
                       background: "none", border: "none",
                       cursor: "pointer", marginBottom: "-2px",
@@ -493,7 +534,7 @@ const signOut = async () => { await createClient().auth.signOut(); router.push("
 
             <div className="flex items-center justify-between mb-4">
               <span style={{ ...HEADING_STYLE, fontSize: "10px" }}>Tasks</span>
-              <button style={{ fontFamily: PF, fontSize: "7px", color: "#475569", background: "none", border: "none", cursor: "pointer" }}>
+              <button style={{ fontFamily: PF, fontSize: "11px", color: "#475569", background: "none", border: "none", cursor: "pointer" }}>
                 View All &gt;
               </button>
             </div>
@@ -510,13 +551,13 @@ const signOut = async () => { await createClient().auth.signOut(); router.push("
                   <div className="flex items-center gap-2 mt-1">
                     <span style={{
                       background: DIFF_COLOR[task.diff] + "22", color: DIFF_COLOR[task.diff],
-                      fontFamily: PF, fontSize: "6px", padding: "2px 5px",
+                      fontFamily: PF, fontSize: "10px", padding: "2px 5px",
                       border: `1px solid ${DIFF_COLOR[task.diff]}44`,
                     }}>{task.diff}</span>
                     <span className="text-xs" style={{ color: "#475569" }}>⏱ {task.mins} min</span>
                   </div>
                 </div>
-                <span style={{ fontFamily: PF, fontSize: "7px", color: "#6ED640", flexShrink: 0 }}>+{task.xp} XP</span>
+                <span style={{ fontFamily: PF, fontSize: "11px", color: "#6ED640", flexShrink: 0 }}>+{task.xp} XP</span>
               </div>
             ))}
           </div>

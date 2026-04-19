@@ -534,7 +534,7 @@ const FeatureCard: React.FC<{ feature: Feature }> = ({ feature }) => (
             background: "#b87209",
             color: "#fff",
             fontFamily: "'Press Start 2P', monospace",
-            fontSize: "7px",
+            fontSize: "11px",
             border: "2px solid #7a4a00",
             boxShadow: "2px 2px 0 #3a2000",
           }}
@@ -552,7 +552,7 @@ const FeatureCard: React.FC<{ feature: Feature }> = ({ feature }) => (
       {feature.label && (
         <p
           className="text-[#6ed640]"
-          style={{ fontFamily: "'Press Start 2P', monospace", fontSize: "7px", letterSpacing: "0.12em" }}
+          style={{ fontFamily: "'Press Start 2P', monospace", fontSize: "11px", letterSpacing: "0.12em" }}
         >
           ▸ {feature.label}
         </p>
@@ -572,7 +572,7 @@ const FeatureCard: React.FC<{ feature: Feature }> = ({ feature }) => (
             className="inline-flex items-center gap-2 px-2 py-1 text-[#7a8fa8]"
             style={{
               fontFamily: "'Press Start 2P', monospace",
-              fontSize: "7px",
+              fontSize: "11px",
               background: "#060e1a",
               border: "2px solid #1e3858",
               boxShadow: "2px 2px 0 #030810",

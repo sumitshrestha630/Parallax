@@ -128,7 +128,7 @@ export function BalanceView({ user }: BalanceViewProps) {
             style={{ background: "#3b1220", border: "2px solid #7f1d1d", color: "#fecaca" }}
           >
             {loadErr}
-            <span className="block mt-1" style={{ fontFamily: PF, fontSize: "6px", color: "#94a3b8" }}>
+            <span className="block mt-1" style={{ fontFamily: PF, fontSize: "10px", color: "#94a3b8" }}>
               Run migration `002_user_schedule_events.sql` in Supabase if this table is missing.
             </span>
           </div>

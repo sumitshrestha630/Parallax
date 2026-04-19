@@ -16,9 +16,10 @@ import type { UserDashboardState } from "@/types/dashboard";
 import { resolveCareerRawPath } from "@/lib/dashboard/career-dashboard";
 import { inferSkillKeyForTreeNode } from "@/lib/dashboard/skill-tree-node-tasks";
 import { getSuggestedTasksForSkill } from "@/lib/tasks/suggested-tasks";
+import type { SuggestedTask } from "@/types/suggested-task";
 import { computeLevel } from "@/lib/dashboard/dashboard-service";
 import { createClient } from "@/lib/supabase/client";
-import { saveSkillTreeProgress } from "@/lib/supabase/queries";
+import { saveSkillTreeProgress, updateSkillProgress } from "@/lib/supabase/queries";
 
 const PF = "'Press Start 2P', monospace";
 
@@ -93,7 +94,7 @@ function NodeCard({
           border: `2px solid ${completed ? track.color
             : active ? `${track.color}88` : "#1a2340"}`,
           display: "flex", alignItems: "center", justifyContent: "center",
-          fontSize: "9px", fontWeight: "bold", color: completed ? "#060c18" : active ? track.color : "#334466",
+          fontSize: "13px", fontWeight: "bold", color: completed ? "#060c18" : active ? track.color : "#334466",
         }}>
           {completed ? "✓" : active ? "▶" : "🔒"}
         </div>
@@ -110,7 +111,7 @@ function NodeCard({
         {/* Label */}
         <div style={{
           fontFamily: completed || active ? PF : "inherit",
-          fontSize: completed || active ? "5.5px" : "10px",
+          fontSize: completed || active ? "9px" : "11px",
           color: completed ? track.color : active ? "#c8d8f0" : "#2a3a50",
           lineHeight: 1.5,
         }}>
@@ -119,7 +120,7 @@ function NodeCard({
 
         {/* XP reward */}
         <div style={{
-          fontFamily: PF, fontSize: "5px", marginTop: 4,
+          fontFamily: PF, fontSize: "9px", marginTop: 4,
           color: completed ? track.color : active ? `${track.color}88` : "#1a2a40",
         }}>
           +{node.xp} XP
@@ -136,15 +137,170 @@ function NodeCard({
   );
 }
 
+// ── Inline task detail (shown inside the node modal) ──────────────────────────
+const DIFF_LABEL_COLOR: Record<string, string> = {
+  easy: "#6ED640", medium: "#FBBF24", hard: "#F472B6",
+};
+
+function InlineTaskDetail({
+  task,
+  trackColor,
+  alreadyDone,
+  completing,
+  onBack,
+  onComplete,
+}: {
+  task: SuggestedTask;
+  trackColor: string;
+  alreadyDone: boolean;
+  completing: boolean;
+  onBack: () => void;
+  onComplete: () => void;
+}) {
+  const [checked, setChecked] = React.useState<boolean[]>(() =>
+    task.instructions.map(() => false)
+  );
+  const allChecked = checked.every(Boolean);
+
+  const toggle = (i: number) =>
+    setChecked(prev => prev.map((v, idx) => (idx === i ? !v : v)));
+
+  return (
+    <div className="flex flex-col gap-4">
+      {/* Back + title */}
+      <div className="flex items-center gap-3">
+        <button
+          onClick={onBack}
+          style={{
+            fontFamily: PF, fontSize: "11px", color: "#64748b",
+            background: "none", border: "2px solid #1a2744",
+            padding: "5px 10px", cursor: "pointer", flexShrink: 0,
+          }}
+        >
+          ← TASKS
+        </button>
+        <div>
+          <div style={{ fontFamily: PF, fontSize: "12px", color: "#e2e8f0" }}>{task.title}</div>
+          <div className="flex items-center gap-2 mt-1 flex-wrap">
+            <span style={{
+              fontFamily: PF, fontSize: "9px",
+              color: DIFF_LABEL_COLOR[task.difficulty] ?? "#64748b",
+              border: `1px solid ${DIFF_LABEL_COLOR[task.difficulty] ?? "#334155"}44`,
+              padding: "2px 6px",
+            }}>{task.difficulty.toUpperCase()}</span>
+            <span style={{ fontFamily: PF, fontSize: "9px", color: "#6ED640" }}>+{task.xp_reward} XP</span>
+            <span style={{ fontFamily: PF, fontSize: "9px", color: "#64748b" }}>{task.estimated_minutes} min</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Description */}
+      <p className="text-sm" style={{ color: "#94a3b8", lineHeight: 1.75 }}>
+        {task.description}
+      </p>
+
+      {/* Learning objective */}
+      <div style={{
+        background: `${trackColor}08`, border: `1px solid ${trackColor}25`,
+        padding: "10px 14px",
+      }}>
+        <p style={{ fontFamily: PF, fontSize: "10px", color: trackColor, marginBottom: "4px" }}>
+          ▸ OBJECTIVE
+        </p>
+        <p className="text-xs" style={{ color: "#94a3b8", lineHeight: 1.65 }}>
+          {task.learning_objective}
+        </p>
+      </div>
+
+      {/* Instructions checklist */}
+      <div>
+        <p style={{ fontFamily: PF, fontSize: "10px", color: "#475569", marginBottom: "8px" }}>
+          ▸ STEPS
+        </p>
+        <div className="flex flex-col gap-2">
+          {task.instructions.map((step, i) => (
+            <div
+              key={i}
+              className="flex items-start gap-3"
+              style={{
+                background: checked[i] ? `${trackColor}10` : "#0d1a2e",
+                border: `1px solid ${checked[i] ? trackColor + "40" : "#1e3858"}`,
+                padding: "10px 14px",
+                cursor: "pointer",
+                transition: "background 0.15s",
+              }}
+              onClick={() => toggle(i)}
+            >
+              <div style={{
+                width: 14, height: 14, flexShrink: 0, marginTop: 2,
+                border: `2px solid ${checked[i] ? trackColor : trackColor + "44"}`,
+                background: checked[i] ? `${trackColor}30` : "transparent",
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}>
+                {checked[i] && <span style={{ fontSize: "12px", color: trackColor }}>✓</span>}
+              </div>
+              <span
+                className="text-sm"
+                style={{
+                  color: checked[i] ? "#64748b" : "#94a3b8",
+                  lineHeight: 1.7,
+                  textDecoration: checked[i] ? "line-through" : "none",
+                  transition: "color 0.15s",
+                }}
+              >
+                {step}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Complete button */}
+      <motion.button
+        type="button"
+        onClick={onComplete}
+        disabled={alreadyDone || completing}
+        whileHover={!alreadyDone && !completing ? { scale: 1.02, filter: "brightness(1.08)" } : {}}
+        whileTap={!alreadyDone && !completing ? { scale: 0.97 } : {}}
+        style={{
+          fontFamily: PF,
+          fontSize: "13px",
+          background: alreadyDone
+            ? `${trackColor}22`
+            : allChecked
+            ? "#6ED640"
+            : `${trackColor}33`,
+          border: `3px solid ${alreadyDone ? trackColor : allChecked ? "#3A9018" : `${trackColor}66`}`,
+          boxShadow: !alreadyDone && allChecked ? "0 5px 0 #1E6010, 0 7px 0 rgba(0,0,0,0.4)" : "none",
+          color: alreadyDone ? trackColor : allChecked ? "#0a1a06" : trackColor,
+          padding: "14px 24px",
+          cursor: alreadyDone || completing ? "default" : "pointer",
+          width: "100%",
+          transition: "background 0.2s, border 0.2s",
+        }}
+      >
+        {alreadyDone
+          ? "✓  Task completed"
+          : completing
+          ? "Saving…"
+          : allChecked
+          ? `Complete & Earn +${task.xp_reward} XP`
+          : `Mark Complete  (+${task.xp_reward} XP)`}
+      </motion.button>
+    </div>
+  );
+}
+
 // ── Node detail modal ──────────────────────────────────────────────────────────
 function NodeModal({
-  node, track, onClose, onComplete, onContinueToTasks, accountLevel,
+  node, track, onClose, onComplete, onContinueToTasks, onCompleteTask, accountLevel,
 }: {
   node: SkillNode;
   track: CareerTrack;
   onClose: () => void;
   onComplete: (id: string) => void;
   onContinueToTasks?: (payload: { skillKey: string; nodeId: string; nodeLabel: string }) => void;
+  onCompleteTask?: (skillKey: string, xp: number) => Promise<void>;
   /** Account level from merged XP (same bar as nav). */
   accountLevel: number;
 }) {
@@ -154,6 +310,22 @@ function NodeModal({
     () => getSuggestedTasksForSkill(node.id, accountLevel).slice(0, 3),
     [node.id, accountLevel]
   );
+
+  const [activeTask, setActiveTask]           = useState<SuggestedTask | null>(null);
+  const [completedTaskKeys, setCompletedTaskKeys] = useState<Set<string>>(new Set());
+  const [taskCompleting, setTaskCompleting]   = useState(false);
+
+  const handleCompleteTask = async (task: SuggestedTask) => {
+    if (!onCompleteTask) return;
+    setTaskCompleting(true);
+    try {
+      await onCompleteTask(task.skill_key, task.xp_reward);
+      setCompletedTaskKeys(prev => new Set([...prev, task.task_key]));
+    } finally {
+      setTaskCompleting(false);
+      setActiveTask(null);
+    }
+  };
 
   const goToTaskPage = () => {
     const q = new URLSearchParams({
@@ -217,21 +389,21 @@ function NodeModal({
                 </h3>
                 <div className="flex items-center gap-2 flex-wrap">
                   <span style={{
-                    fontFamily: PF, fontSize: "6px",
+                    fontFamily: PF, fontSize: "10px",
                     color: DIFF_COLOR[node.difficulty],
                     background: `${DIFF_COLOR[node.difficulty]}15`,
                     border: `1px solid ${DIFF_COLOR[node.difficulty]}44`,
                     padding: "3px 7px",
                   }}>{node.difficulty}</span>
                   <span style={{
-                    fontFamily: PF, fontSize: "6px", color: track.color,
+                    fontFamily: PF, fontSize: "10px", color: track.color,
                     background: `${track.color}15`,
                     border: `1px solid ${track.color}44`,
                     padding: "3px 7px",
                   }}>+{node.xp} XP</span>
                   {node.isRequired && (
                     <span style={{
-                      fontFamily: PF, fontSize: "6px", color: "#F472B6",
+                      fontFamily: PF, fontSize: "10px", color: "#F472B6",
                       background: "rgba(244,114,182,0.1)",
                       border: "1px solid rgba(244,114,182,0.3)",
                       padding: "3px 7px",
@@ -243,7 +415,7 @@ function NodeModal({
             <button onClick={onClose} style={{
               background: "none", border: "2px solid #1a2744",
               color: "#475569", cursor: "pointer",
-              padding: "4px 10px", fontFamily: PF, fontSize: "9px",
+              padding: "4px 10px", fontFamily: PF, fontSize: "13px",
               flexShrink: 0,
             }}>✕</button>
           </div>
@@ -261,16 +433,28 @@ function NodeModal({
 
         <div style={{ padding: "20px" }} className="flex flex-col gap-5">
 
+          {/* ── Inline task detail (replaces body when a task is active) ── */}
+          {activeTask ? (
+            <InlineTaskDetail
+              task={activeTask}
+              trackColor={track.color}
+              alreadyDone={completedTaskKeys.has(activeTask.task_key)}
+              completing={taskCompleting}
+              onBack={() => setActiveTask(null)}
+              onComplete={() => handleCompleteTask(activeTask)}
+            />
+          ) : (<>
+
           {/* Prerequisites */}
           {node.prereqs.length > 0 && (
             <div>
-              <p style={{ fontFamily: PF, fontSize: "7px", color: "#475569", marginBottom: "8px" }}>
+              <p style={{ fontFamily: PF, fontSize: "11px", color: "#475569", marginBottom: "8px" }}>
                 ▸ PREREQUISITES
               </p>
               <div className="flex flex-wrap gap-2">
                 {node.prereqs.map(pid => (
                   <span key={pid} style={{
-                    fontFamily: PF, fontSize: "6px",
+                    fontFamily: PF, fontSize: "10px",
                     color: "#94a3b8", background: "#0d1a2e",
                     border: "1px solid #1e3858", padding: "4px 10px",
                   }}>
@@ -283,30 +467,45 @@ function NodeModal({
 
           {/* Learning resources */}
           <div>
-            <p style={{ fontFamily: PF, fontSize: "7px", color: "#475569", marginBottom: "8px" }}>
+            <p style={{ fontFamily: PF, fontSize: "11px", color: "#475569", marginBottom: "8px" }}>
               ▸ LEARNING RESOURCES
             </p>
             <div className="flex flex-col gap-2">
               {node.resources.map((r, i) => (
-                <div key={i} className="flex items-center gap-3" style={{
-                  background: "#0d1a2e", border: "1px solid #1e3858", padding: "10px 14px",
-                }}>
+                <a
+                  key={i}
+                  href={r.url !== "#" ? r.url : undefined}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-3"
+                  style={{
+                    background: "#0d1a2e", border: "1px solid #1e3858", padding: "10px 14px",
+                    textDecoration: "none",
+                    cursor: r.url !== "#" ? "pointer" : "default",
+                    transition: "border-color 0.15s",
+                  }}
+                  onMouseEnter={e => { if (r.url !== "#") (e.currentTarget as HTMLElement).style.borderColor = "#2e5a8e"; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "#1e3858"; }}
+                >
                   <span style={{ fontSize: "16px" }}>{RES_ICON[r.type]}</span>
                   <div className="flex-1 min-w-0">
-                    <span className="text-sm" style={{ color: "#c8d8f0" }}>{r.title}</span>
+                    <span className="text-sm" style={{ color: r.url !== "#" ? "#7db8f0" : "#c8d8f0" }}>{r.title}</span>
                     <span style={{
-                      marginLeft: "8px", fontFamily: PF, fontSize: "5px",
+                      marginLeft: "8px", fontFamily: PF, fontSize: "9px",
                       color: "#334466", textTransform: "uppercase",
                     }}>{r.type}</span>
                   </div>
-                </div>
+                  {r.url !== "#" && (
+                    <span style={{ fontSize: "11px", color: "#334466", flexShrink: 0 }}>↗</span>
+                  )}
+                </a>
               ))}
             </div>
           </div>
 
           {/* Mini challenges */}
           <div>
-            <p style={{ fontFamily: PF, fontSize: "7px", color: "#475569", marginBottom: "8px" }}>
+            <p style={{ fontFamily: PF, fontSize: "11px", color: "#475569", marginBottom: "8px" }}>
               ▸ MINI CHALLENGES
             </p>
             <div className="flex flex-col gap-2">
@@ -321,7 +520,7 @@ function NodeModal({
                     display: "flex", alignItems: "center", justifyContent: "center",
                   }}>
                     {isCompleted && (
-                      <span style={{ fontSize: "8px", color: track.color }}>✓</span>
+                      <span style={{ fontSize: "12px", color: track.color }}>✓</span>
                     )}
                   </div>
                   <span className="text-sm" style={{ color: "#94a3b8", lineHeight: 1.7 }}>{c}</span>
@@ -336,7 +535,7 @@ function NodeModal({
             border: "1px solid rgba(251,191,36,0.22)",
             padding: "14px 16px",
           }}>
-            <p style={{ fontFamily: PF, fontSize: "7px", color: "#FBBF24", marginBottom: "8px" }}>
+            <p style={{ fontFamily: PF, fontSize: "11px", color: "#FBBF24", marginBottom: "8px" }}>
               ★ MENTOR TIP
             </p>
             <p className="text-sm" style={{ color: "#94a3b8", lineHeight: 1.75 }}>
@@ -346,46 +545,87 @@ function NodeModal({
 
           {/* Suggested tasks (curated for this node) */}
           <div>
-            <p style={{ fontFamily: PF, fontSize: "7px", color: "#475569", marginBottom: "10px" }}>
+            <p style={{ fontFamily: PF, fontSize: "11px", color: "#475569", marginBottom: "10px" }}>
               ▸ SUGGESTED NEXT TASKS
             </p>
             <div className="flex flex-col gap-2">
-              {suggestedPreview.map(st => (
-                <div
-                  key={st.task_key}
-                  style={{
-                    background: "#0d1a2e",
-                    border: "1px solid #1e3858",
-                    padding: "12px 14px",
-                  }}
-                >
-                  <div className="flex flex-wrap items-center gap-2 mb-1">
-                    <span className="text-sm font-medium" style={{ color: "#e2e8f0" }}>{st.title}</span>
-                    <span style={{
-                      fontFamily: PF, fontSize: "5px",
-                      color: SUGGEST_DIFF[st.difficulty] ?? "#64748b",
-                      border: `1px solid ${SUGGEST_DIFF[st.difficulty] ?? "#334155"}44`,
-                      padding: "2px 6px",
-                    }}>{st.difficulty.toUpperCase()}</span>
-                    <span style={{ fontFamily: PF, fontSize: "5px", color: "#6ED640" }}>+{st.xp_reward} XP</span>
-                    <span style={{ fontFamily: PF, fontSize: "5px", color: "#94a3b8" }}>{st.estimated_minutes} min</span>
+              {suggestedPreview.map(st => {
+                const done = completedTaskKeys.has(st.task_key);
+                return (
+                  <div
+                    key={st.task_key}
+                    style={{
+                      background: done ? `${track.color}0a` : "#0d1a2e",
+                      border: `1px solid ${done ? track.color + "40" : "#1e3858"}`,
+                      padding: "12px 14px",
+                    }}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-2 mb-1">
+                          <span className="text-sm font-medium" style={{ color: done ? track.color : "#e2e8f0" }}>
+                            {done ? "✓ " : ""}{st.title}
+                          </span>
+                          <span style={{
+                            fontFamily: PF, fontSize: "9px",
+                            color: SUGGEST_DIFF[st.difficulty] ?? "#64748b",
+                            border: `1px solid ${SUGGEST_DIFF[st.difficulty] ?? "#334155"}44`,
+                            padding: "2px 6px",
+                          }}>{st.difficulty.toUpperCase()}</span>
+                          <span style={{ fontFamily: PF, fontSize: "9px", color: "#6ED640" }}>+{st.xp_reward} XP</span>
+                          <span style={{ fontFamily: PF, fontSize: "9px", color: "#94a3b8" }}>{st.estimated_minutes} min</span>
+                        </div>
+                        <p className="text-xs" style={{ color: "#64748b", lineHeight: 1.6 }}>{st.description}</p>
+                      </div>
+                      {onCompleteTask && (
+                        <motion.button
+                          type="button"
+                          onClick={() => setActiveTask(st)}
+                          disabled={done}
+                          whileHover={!done ? { scale: 1.05 } : {}}
+                          whileTap={!done ? { scale: 0.96 } : {}}
+                          style={{
+                            fontFamily: PF, fontSize: "10px",
+                            background: done ? `${track.color}18` : "#122040",
+                            border: `2px solid ${done ? track.color + "55" : track.color + "55"}`,
+                            color: done ? track.color : track.color,
+                            padding: "6px 10px",
+                            cursor: done ? "default" : "pointer",
+                            flexShrink: 0,
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {done ? "✓ DONE" : "▶ START"}
+                        </motion.button>
+                      )}
+                    </div>
                   </div>
-                  <p className="text-xs" style={{ color: "#64748b", lineHeight: 1.6 }}>{st.description}</p>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
-          {/* CTAs — open full Tasks page with URL context, or stay in-dashboard */}
+          {/* CTAs */}
           <div className="flex flex-col gap-3">
             <motion.button
               type="button"
-              onClick={goToTaskPage}
+              onClick={() => {
+                if (onContinueToTasks) {
+                  onContinueToTasks({
+                    skillKey: inferSkillKeyForTreeNode(node.id),
+                    nodeId: node.id,
+                    nodeLabel: node.label,
+                  });
+                  onClose();
+                } else {
+                  goToTaskPage();
+                }
+              }}
               whileHover={{ scale: 1.02, filter: "brightness(1.08)" }}
               whileTap={{ scale: 0.98 }}
               style={{
                 fontFamily: PF,
-                fontSize: "9px",
+                fontSize: "13px",
                 background: "#6ED640",
                 border: "3px solid #3A9018",
                 boxShadow: "0 5px 0 #1E6010, 0 7px 0 rgba(0,0,0,0.4)",
@@ -397,34 +637,6 @@ function NodeModal({
             >
               Go to Task
             </motion.button>
-            {onContinueToTasks && (
-              <motion.button
-                type="button"
-                onClick={() => {
-                  onContinueToTasks({
-                    skillKey: inferSkillKeyForTreeNode(node.id),
-                    nodeId: node.id,
-                    nodeLabel: node.label,
-                  });
-                  onClose();
-                }}
-                whileHover={{ scale: 1.02, filter: "brightness(1.06)" }}
-                whileTap={{ scale: 0.98 }}
-                style={{
-                  fontFamily: PF,
-                  fontSize: "8px",
-                  background: "#122040",
-                  border: "3px solid #1e3858",
-                  boxShadow: "0 4px 0 #06111e",
-                  color: "#6ED640",
-                  padding: "12px 20px",
-                  cursor: "pointer",
-                  width: "100%",
-                }}
-              >
-                Continue in dashboard →
-              </motion.button>
-            )}
             <motion.button
               type="button"
               onClick={() => canComplete && onComplete(node.id)}
@@ -433,7 +645,7 @@ function NodeModal({
               whileTap={canComplete ? { scale: 0.97 } : {}}
               style={{
                 fontFamily: PF,
-                fontSize: "9px",
+                fontSize: "13px",
                 background: isCompleted ? `${track.color}22`
                   : canComplete ? `${track.color}33` : "#0d1628",
                 border: `3px solid ${isCompleted ? track.color
@@ -453,6 +665,7 @@ function NodeModal({
             </motion.button>
           </div>
 
+          </>)}
         </div>
       </motion.div>
     </motion.div>
@@ -604,6 +817,19 @@ export function SkillTree({
     });
   };
 
+  const completeTask = useCallback(async (skillKey: string, xp: number) => {
+    const { data: row } = await sb
+      .from("user_skills")
+      .select("xp, level, unlocked")
+      .eq("user_id", user.id)
+      .eq("skill_key", skillKey)
+      .maybeSingle();
+    const prevXp    = Number(row?.xp ?? 0);
+    const newXp     = prevXp + xp;
+    const newLevel  = Math.max(Number(row?.level ?? 1), Math.floor(newXp / 200) + 1);
+    await updateSkillProgress(sb, user.id, skillKey, newXp, newLevel, true);
+  }, [sb, user.id]);
+
   const TIER_LABELS = ["FOUNDATION", "CORE", "INTERMEDIATE", "ADVANCED", "CAPSTONE"];
 
   return (
@@ -613,9 +839,9 @@ export function SkillTree({
       <div className="flex-shrink-0 px-4 pt-3 pb-3"
         style={{ borderBottom: "2px solid #1a2744", background: "#04080e" }}>
         <div className="flex items-center gap-2 mb-1">
-          <span style={{ fontFamily: PF, fontSize: "7px", color: "#334466" }}>▸ CAREER PATH</span>
+          <span style={{ fontFamily: PF, fontSize: "11px", color: "#334466" }}>▸ CAREER PATH</span>
           <span style={{
-            fontFamily: PF, fontSize: "6px", color: "#6ED640",
+            fontFamily: PF, fontSize: "10px", color: "#6ED640",
             background: "rgba(110,214,64,0.1)", border: "1px solid rgba(110,214,64,0.25)",
             padding: "1px 7px",
           }}>YOUR PATH</span>
@@ -647,52 +873,47 @@ export function SkillTree({
           <div className="flex items-center gap-2 flex-wrap">
             <div style={{
               background: track.colorDim, border: `2px solid ${track.color}`,
-              fontFamily: PF, fontSize: "7px", color: track.color, padding: "3px 9px",
+              fontFamily: PF, fontSize: "11px", color: track.color, padding: "3px 9px",
             }}>
               LV {accountLevelNum}
             </div>
-            <span style={{ fontFamily: PF, fontSize: "6px", color: "#64748b" }}>
+            <span style={{ fontFamily: PF, fontSize: "10px", color: "#64748b" }}>
               Skill XP total: {accountXp} · band {xpIntoBand}/{ACCOUNT_XP_PER_LEVEL}
             </span>
           </div>
-          {pathXp !== dbSkillXp && (
-            <span style={{ fontFamily: PF, fontSize: "5px", color: "#475569" }}>
-              Saved (profile) skills: {dbSkillXp} XP · this path’s nodes: {pathXp} XP — complete tasks to add to the shared total
-            </span>
-          )}
         </div>
 
         {/* XP bar — current level band fill matches top nav */}
         <div className="flex items-center gap-2" style={{ minWidth: "160px", maxWidth: "240px" }}>
-          <span style={{ fontFamily: PF, fontSize: "6px", color: "#334466", flexShrink: 0 }}>XP</span>
+          <span style={{ fontFamily: PF, fontSize: "10px", color: "#334466", flexShrink: 0 }}>XP</span>
           <div className="flex-1 h-2" style={{ background: "#162238", border: "1px solid #1e3858" }}>
             <motion.div className="h-full"
               animate={{ width: `${accountXpBarPct}%` }}
               transition={{ duration: 0.8 }}
               style={{ background: `linear-gradient(90deg, ${track.colorDim}, ${track.color})` }} />
           </div>
-          <span style={{ fontFamily: PF, fontSize: "6px", color: track.color }}>{accountXp}</span>
+          <span style={{ fontFamily: PF, fontSize: "10px", color: track.color }}>{accountXp}</span>
         </div>
 
         {/* Career readiness */}
         <div className="flex items-center gap-2">
-          <span style={{ fontFamily: PF, fontSize: "6px", color: "#334466" }}>READINESS</span>
+          <span style={{ fontFamily: PF, fontSize: "10px", color: "#334466" }}>READINESS</span>
           <div style={{ width: 64, height: 6, background: "#162238", border: "1px solid #1e3858" }}>
             <motion.div
               animate={{ width: `${readiness}%` }}
               transition={{ duration: 0.8 }}
               style={{ height: "100%", background: "#6ED640" }} />
           </div>
-          <span style={{ fontFamily: PF, fontSize: "6px", color: "#6ED640" }}>{readiness}%</span>
+          <span style={{ fontFamily: PF, fontSize: "10px", color: "#6ED640" }}>{readiness}%</span>
         </div>
 
         {/* Badges */}
-        <div style={{ fontFamily: PF, fontSize: "6px", color: "#FBBF24" }}>
+        <div style={{ fontFamily: PF, fontSize: "10px", color: "#FBBF24" }}>
           ★ {earnedBadges.length}/{track.badges.length} BADGES
         </div>
 
         {/* Skill count */}
-        <div style={{ fontFamily: PF, fontSize: "6px", color: "#334466" }}>
+        <div style={{ fontFamily: PF, fontSize: "10px", color: "#334466" }}>
           {completedCount}/{nodes.length} SKILLS
         </div>
       </div>
@@ -772,7 +993,7 @@ export function SkillTree({
 
         {/* Badges */}
         <div className="flex-1" style={{ minWidth: "260px" }}>
-          <p style={{ fontFamily: PF, fontSize: "6px", color: "#FBBF24", marginBottom: "8px" }}>
+          <p style={{ fontFamily: PF, fontSize: "10px", color: "#FBBF24", marginBottom: "8px" }}>
             ★ BADGES
           </p>
           <div className="flex gap-2 flex-wrap">
@@ -790,7 +1011,7 @@ export function SkillTree({
                 }}>
                   <span style={{ fontSize: "14px" }}>{badge.emoji}</span>
                   <span style={{
-                    fontFamily: PF, fontSize: "5.5px",
+                    fontFamily: PF, fontSize: "13px",
                     color: earned ? "#FBBF24" : "#2a3a50",
                   }}>{badge.label}</span>
                 </div>
@@ -802,7 +1023,7 @@ export function SkillTree({
         {/* Hiring manager + mentor notes */}
         <div className="flex gap-3 flex-wrap" style={{ flexShrink: 0 }}>
           <div style={{ width: "210px", background: "#0d1628", border: "1px solid #1a2744", padding: "10px 12px" }}>
-            <p style={{ fontFamily: PF, fontSize: "6px", color: "#F472B6", marginBottom: "6px" }}>
+            <p style={{ fontFamily: PF, fontSize: "10px", color: "#F472B6", marginBottom: "6px" }}>
               💼 HIRING MANAGER
             </p>
             <p style={{ fontSize: "10px", color: "#475569", lineHeight: 1.65 }}>
@@ -810,7 +1031,7 @@ export function SkillTree({
             </p>
           </div>
           <div style={{ width: "210px", background: "#0d1628", border: "1px solid #1a2744", padding: "10px 12px" }}>
-            <p style={{ fontFamily: PF, fontSize: "6px", color: "#6ED640", marginBottom: "6px" }}>
+            <p style={{ fontFamily: PF, fontSize: "10px", color: "#6ED640", marginBottom: "6px" }}>
               🎓 MENTOR SAYS
             </p>
             <p style={{ fontSize: "10px", color: "#475569", lineHeight: 1.65 }}>
@@ -830,6 +1051,7 @@ export function SkillTree({
             onClose={() => setSelectedNode(null)}
             onComplete={completeNode}
             onContinueToTasks={onContinueToTasks}
+            onCompleteTask={completeTask}
           />
         )}
       </AnimatePresence>

@@ -147,7 +147,7 @@ function RenderedItem({ item, onToggle, children }: RenderedItemProps) {
       {/* Hide button – shown on hover via CSS */}
       <button
         className="absolute top-2 right-2 z-20 opacity-0 hover:opacity-100 transition-opacity"
-        style={{ fontFamily: "'Press Start 2P', monospace", fontSize: "6px", color: "#334155", background: "none", border: "none", cursor: "pointer" }}
+        style={{ fontFamily: "'Press Start 2P', monospace", fontSize: "10px", color: "#334155", background: "none", border: "none", cursor: "pointer" }}
         onClick={() => onToggle(item.id, false)}
         title="Hide widget"
       >

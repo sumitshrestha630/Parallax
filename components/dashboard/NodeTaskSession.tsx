@@ -108,7 +108,7 @@ export function NodeTaskSession({
           onClick={() => void refresh()}
           style={{
             fontFamily: PF,
-            fontSize: "8px",
+            fontSize: "12px",
             background: "#122040",
             border: "2px solid #1e3858",
             color: "#6ED640",
@@ -127,6 +127,7 @@ export function NodeTaskSession({
       <TaskQuestDetail
         row={questRow}
         topicLabel={displayLabel}
+        practiceGuide={curated}
         onBack={() => router.push("/dashboard")}
         onComplete={() => runComplete(questRow.task.task_key)}
         onNextTask={
@@ -164,7 +165,7 @@ export function NodeTaskSession({
 
       {curated.length > 0 ? (
         <section style={{ ...CARD, padding: "16px" }} className="mb-6">
-          <h2 style={{ fontFamily: PF, fontSize: "9px", color: "#78E04A", marginBottom: "12px" }}>
+          <h2 style={{ fontFamily: PF, fontSize: "13px", color: "#78E04A", marginBottom: "12px" }}>
             Practice for this node
           </h2>
           <div className="space-y-4">
@@ -198,7 +199,7 @@ export function NodeTaskSession({
         href={listHref}
         style={{
           fontFamily: PF,
-          fontSize: "9px",
+          fontSize: "13px",
           display: "inline-block",
           background: "#6ED640",
           border: "3px solid #3A9018",

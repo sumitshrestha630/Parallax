@@ -88,3 +88,11 @@ export const CPU_SKILL_DEFAULTS: CpuSkillLayoutDefault[] = [
     dashDuration: "2.0s",
   },
 ];
+
+const CANON_IDS = new Set(CPU_SKILL_DEFAULTS.map(d => d.id));
+
+/** Ensures career-focus always maps to a real route id (bad props used to leave every branch “locked”). */
+export function normalizeCpuFocusSkillKey(key: string | undefined): string {
+  const k = typeof key === "string" ? key.trim() : "";
+  return k && CANON_IDS.has(k) ? k : "frontend";
+}

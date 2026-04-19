@@ -115,12 +115,12 @@ export function Onboarding({ user }: { user: User }) {
         </div>
 
         <div className="p-8">
-          <p style={{ fontFamily: PF, fontSize: "8px", color: "#475569", marginBottom: "8px" }}>
+          <p style={{ fontFamily: PF, fontSize: "12px", color: "#475569", marginBottom: "8px" }}>
             STEP {stepIndex + 1} OF {STEPS.length}
           </p>
 
           {step === "school" && (
-            <p style={{ fontFamily: PF, fontSize: "9px", color: "#6ED640", marginBottom: "20px", letterSpacing: "0.1em" }}>
+            <p style={{ fontFamily: PF, fontSize: "13px", color: "#6ED640", marginBottom: "20px", letterSpacing: "0.1em" }}>
               ▸ Welcome, {name}!
             </p>
           )}
@@ -253,7 +253,7 @@ export function Onboarding({ user }: { user: User }) {
                       style={{ background: "#0d1a2e", border: "2px solid #1e3858" }}>
                       <PixelAvatar avatarId={selectedAvatar.id} size={90} selected />
                       <div>
-                        <p style={{ fontFamily: PF, fontSize: "8px", color: "#6ED640", marginBottom: "6px" }}>
+                        <p style={{ fontFamily: PF, fontSize: "12px", color: "#6ED640", marginBottom: "6px" }}>
                           {selectedAvatar.label}
                         </p>
                         <p className="text-xs" style={{ color: "#64748b", lineHeight: 1.7 }}>
@@ -270,13 +270,13 @@ export function Onboarding({ user }: { user: User }) {
           </AnimatePresence>
 
           {error && (
-            <p className="mt-4" style={{ color: "#F472B6", fontFamily: PF, fontSize: "7px" }}>{error}</p>
+            <p className="mt-4" style={{ color: "#F472B6", fontFamily: PF, fontSize: "11px" }}>{error}</p>
           )}
 
           <div className="flex items-center justify-between mt-8">
             {stepIndex > 0
               ? <button onClick={() => setStep(STEPS[stepIndex - 1])}
-                  style={{ fontFamily: PF, fontSize: "8px", color: "#475569", background: "none", border: "none", cursor: "pointer" }}
+                  style={{ fontFamily: PF, fontSize: "12px", color: "#475569", background: "none", border: "none", cursor: "pointer" }}
                   onMouseEnter={e => (e.currentTarget.style.color = "#94a3b8")}
                   onMouseLeave={e => (e.currentTarget.style.color = "#475569")}>
                   ← Back
@@ -300,7 +300,7 @@ export function Onboarding({ user }: { user: User }) {
         </div>
       </div>
 
-      <p className="mt-6" style={{ fontFamily: PF, fontSize: "7px", color: "#334155" }}>
+      <p className="mt-6" style={{ fontFamily: PF, fontSize: "11px", color: "#334155" }}>
         +50 XP for completing your profile
       </p>
     </div>

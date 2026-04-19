@@ -133,7 +133,7 @@ export function EventEditorModal({
                 type="button"
                 onClick={onClose}
                 style={{
-                  fontFamily: PF, fontSize: "8px", color: "#64748b",
+                  fontFamily: PF, fontSize: "12px", color: "#64748b",
                   background: "none", border: "none", cursor: "pointer",
                 }}
               >
@@ -142,7 +142,7 @@ export function EventEditorModal({
             </div>
 
             <label className="block mb-3">
-              <span style={{ fontFamily: PF, fontSize: "6px", color: "#64748b" }}>TITLE</span>
+              <span style={{ fontFamily: PF, fontSize: "10px", color: "#64748b" }}>TITLE</span>
               <input
                 value={title}
                 onChange={e => setTitle(e.target.value)}
@@ -157,7 +157,7 @@ export function EventEditorModal({
 
             <div className="grid grid-cols-2 gap-3 mb-3">
               <label className="block">
-                <span style={{ fontFamily: PF, fontSize: "6px", color: "#64748b" }}>TYPE</span>
+                <span style={{ fontFamily: PF, fontSize: "10px", color: "#64748b" }}>TYPE</span>
                 <select
                   value={type}
                   onChange={e => setType(e.target.value as ScheduleEventType)}
@@ -173,7 +173,7 @@ export function EventEditorModal({
                 </select>
               </label>
               <label className="block">
-                <span style={{ fontFamily: PF, fontSize: "6px", color: "#64748b" }}>DAY</span>
+                <span style={{ fontFamily: PF, fontSize: "10px", color: "#64748b" }}>DAY</span>
                 <select
                   value={day}
                   onChange={e => setDay(e.target.value as Weekday)}
@@ -192,7 +192,7 @@ export function EventEditorModal({
 
             <div className="grid grid-cols-2 gap-3 mb-3">
               <label className="block">
-                <span style={{ fontFamily: PF, fontSize: "6px", color: "#64748b" }}>START</span>
+                <span style={{ fontFamily: PF, fontSize: "10px", color: "#64748b" }}>START</span>
                 <input
                   type="time"
                   value={start}
@@ -204,7 +204,7 @@ export function EventEditorModal({
                 />
               </label>
               <label className="block">
-                <span style={{ fontFamily: PF, fontSize: "6px", color: "#64748b" }}>END</span>
+                <span style={{ fontFamily: PF, fontSize: "10px", color: "#64748b" }}>END</span>
                 <input
                   type="time"
                   value={end}
@@ -218,7 +218,7 @@ export function EventEditorModal({
             </div>
 
             <label className="block mb-4">
-              <span style={{ fontFamily: PF, fontSize: "6px", color: "#64748b" }}>LOAD</span>
+              <span style={{ fontFamily: PF, fontSize: "10px", color: "#64748b" }}>LOAD</span>
               <select
                 value={intensity}
                 onChange={e => setIntensity(e.target.value as ScheduleIntensity)}

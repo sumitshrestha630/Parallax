@@ -21,12 +21,12 @@ export function TasksStandaloneLayout({ urlHandoff }: { urlHandoff: TasksUrlHand
         style={{ background: "rgba(4,9,24,0.95)" }}
       >
         <div className="flex items-center gap-4">
-          <Link href="/dashboard" style={{ fontFamily: PF, fontSize: "8px", color: "#64748b" }}>
+          <Link href="/dashboard" style={{ fontFamily: PF, fontSize: "12px", color: "#64748b" }}>
             ← Dashboard
           </Link>
           <span style={{ fontFamily: PF, fontSize: "10px", color: "#78E04A" }}>TASKS</span>
         </div>
-        <Link href="/" style={{ fontFamily: PF, fontSize: "7px", color: "#475569" }}>
+        <Link href="/" style={{ fontFamily: PF, fontSize: "11px", color: "#475569" }}>
           Rooted home
         </Link>
       </nav>

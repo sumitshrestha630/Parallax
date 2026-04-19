@@ -400,7 +400,7 @@ const HeroContent = () => (
     >
       <p
         className="text-stone-400 tracking-widest uppercase"
-        style={{ fontSize: "9px" }}
+        style={{ fontSize: "13px" }}
       >
         Supported by
       </p>
