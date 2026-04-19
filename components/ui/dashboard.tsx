@@ -13,6 +13,7 @@ import { DashboardRenderer } from "@/components/dashboard/DashboardRenderer";
 import { BalanceView } from "@/components/balance/BalanceView";
 import { TaskPage, type SkillTreeTaskFocus } from "@/components/dashboard/TaskPage";
 import { ResumeAnalyzer } from "@/components/resume/ResumeAnalyzer";
+import { CommunityHub } from "@/components/community/CommunityHub";
 import type { DashboardData, UserSkill } from "@/types/dashboard";
 import { DashboardSkillsSyncProvider } from "@/components/dashboard/dashboard-skills-sync";
 import { fetchUserSkillsClient } from "@/lib/dashboard/fetch-user-skills-client";
@@ -70,7 +71,7 @@ const DIFF_COLOR: Record<string, string> = {
 };
 
 
-const NAV_TABS = ["Dashboard", "Skill Tree", "Tasks", "Balance", "Resume"] as const;
+const NAV_TABS = ["Dashboard", "Skill Tree", "Tasks", "Balance", "Resume", "Community"] as const;
 type NavTab = typeof NAV_TABS[number];
 const TASK_TABS = ["Upcoming", "Tasks", "Completed"] as const;
 type TaskTab = typeof TASK_TABS[number];
@@ -302,7 +303,9 @@ const signOut = async () => { await createClient().auth.signOut(); router.push("
       {/* ── Body ── */}
       <div className="flex flex-1 min-h-0 overflow-hidden">
 
-        {navTab === "Balance" ? (
+        {navTab === "Community" ? (
+          <CommunityHub user={user} />
+        ) : navTab === "Balance" ? (
           <BalanceView user={user} />
         ) : navTab === "Resume" ? (
           <ResumeAnalyzer

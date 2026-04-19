@@ -1,0 +1,125 @@
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&family=Space+Mono:wght@400;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* RetroNet design system - playful pixel/arcade vibes */
+@layer base {
+  :root {
+    /* Cream paper background */
+    --background: 42 38% 95%;
+    --foreground: 230 25% 12%;
+
+    --card: 42 50% 98%;
+    --card-foreground: 230 25% 12%;
+
+    --popover: 42 50% 98%;
+    --popover-foreground: 230 25% 12%;
+
+    /* Hot pink primary */
+    --primary: 340 85% 58%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Electric purple secondary */
+    --secondary: 258 80% 65%;
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 42 30% 88%;
+    --muted-foreground: 230 15% 35%;
+
+    /* Neon yellow accent */
+    --accent: 48 95% 60%;
+    --accent-foreground: 230 25% 12%;
+
+    /* Mint success */
+    --success: 158 65% 50%;
+    --success-foreground: 0 0% 100%;
+
+    --destructive: 0 80% 58%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 230 25% 12%;
+    --input: 42 30% 88%;
+    --ring: 340 85% 58%;
+
+    --radius: 0.25rem;
+
+    /* Pixel shadow tokens */
+    --shadow-pixel: 4px 4px 0 0 hsl(var(--border));
+    --shadow-pixel-sm: 2px 2px 0 0 hsl(var(--border));
+    --shadow-pixel-lg: 6px 6px 0 0 hsl(var(--border));
+    --shadow-pixel-primary: 4px 4px 0 0 hsl(340 85% 35%);
+    --shadow-pixel-secondary: 4px 4px 0 0 hsl(258 80% 40%);
+
+    --gradient-arcade: linear-gradient(135deg, hsl(340 85% 58%), hsl(258 80% 65%));
+    --gradient-sunrise: linear-gradient(135deg, hsl(48 95% 60%), hsl(340 85% 58%));
+
+    --sidebar-background: 42 38% 95%;
+    --sidebar-foreground: 230 25% 12%;
+    --sidebar-primary: 340 85% 58%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 42 30% 88%;
+    --sidebar-accent-foreground: 230 25% 12%;
+    --sidebar-border: 230 25% 12%;
+    --sidebar-ring: 340 85% 58%;
+  }
+
+  .dark {
+    --background: 230 25% 10%;
+    --foreground: 42 38% 95%;
+    --card: 230 25% 14%;
+    --card-foreground: 42 38% 95%;
+    --popover: 230 25% 14%;
+    --popover-foreground: 42 38% 95%;
+    --primary: 340 85% 62%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 258 80% 70%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 230 20% 20%;
+    --muted-foreground: 42 20% 70%;
+    --accent: 48 95% 60%;
+    --accent-foreground: 230 25% 12%;
+    --destructive: 0 80% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 42 38% 95%;
+    --input: 230 20% 20%;
+    --ring: 340 85% 62%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Space Mono', monospace;
+    background-image:
+      radial-gradient(circle at 1px 1px, hsl(230 25% 12% / 0.06) 1px, transparent 0);
+    background-size: 24px 24px;
+  }
+  h1, h2, h3, h4, h5 {
+    font-family: 'Press Start 2P', system-ui, sans-serif;
+    letter-spacing: -0.02em;
+    line-height: 1.4;
+  }
+  .font-pixel { font-family: 'Press Start 2P', system-ui, sans-serif; }
+  .font-display { font-family: 'VT323', monospace; }
+  .font-mono { font-family: 'Space Mono', monospace; }
+}
+
+@layer components {
+  .pixel-card {
+    @apply bg-card border-2 border-border;
+    box-shadow: var(--shadow-pixel);
+  }
+  .pixel-card-lg {
+    @apply bg-card border-2 border-border;
+    box-shadow: var(--shadow-pixel-lg);
+  }
+  .pixel-tag {
+    @apply inline-block border-2 border-border px-2 py-0.5 text-xs font-bold uppercase tracking-wider;
+    box-shadow: var(--shadow-pixel-sm);
+  }
+}
