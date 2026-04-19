@@ -1,0 +1,55 @@
+@import "tailwindcss";
+
+/* ─── Design tokens ──────────────────────────────────────────────────────────*/
+@theme {
+  --color-background:       #080e1a;
+  --color-foreground:       #f0f0ec;
+  --color-card:             #0d1a2e;
+  --color-card-foreground:  #f0f0ec;
+  --color-border:           #1e3858;
+  --color-muted:            #162238;
+  --color-muted-foreground: #7a8fa8;
+  --color-primary:          #6ed640;
+  --color-primary-foreground: #080e1a;
+  --color-ring:             #6ed640;
+}
+
+:root {
+  --background: #080e1a;
+  --foreground: #f0f0ec;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+}
+
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+.animate-marquee {
+  animation: marquee 22s linear infinite;
+}
+
+@keyframes float-up {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-6px); }
+}
+.animate-float      { animation: float-up 3s ease-in-out infinite; }
+.animate-float-slow { animation: float-up 4.5s ease-in-out infinite; animation-delay: -1.5s; }
+
+@keyframes xp-fill {
+  from { width: 0%; }
+  to   { width: var(--xp-target); }
+}
+.animate-xp { animation: xp-fill 1.8s ease-out forwards; }
+
+/* Pixel border utility */
+.pixel-border {
+  box-shadow:
+    0 -3px 0 0 #3A9018,
+    0  3px 0 0 #1E6010,
+    -3px 0 0 0 #3A9018,
+     3px 0 0 0 #3A9018;
+}
