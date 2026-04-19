@@ -54,7 +54,7 @@ const registry: Record<ComponentKey, RegistryEntry> = {
     resolveProps: (item, context, user) => {
       const xpPerLevel = 200;
       const inLevelXp = context.totalXp % xpPerLevel;
-      return {
+      const merged: Record<string, unknown> = {
         careerTitle: context.careerTrackLabel,
         focusSkillKey: context.cpuFocusSkillKey,
         level:       Math.max(1, Math.floor(context.totalXp / xpPerLevel) + 1),
@@ -64,6 +64,13 @@ const registry: Record<ComponentKey, RegistryEntry> = {
         userSkills: context.skills,
         ...item.props,
       };
+      const rawClass = merged.className;
+      const layoutMin = "min-h-[min(55vh,520px)]";
+      merged.className =
+        typeof rawClass === "string" && rawClass.trim()
+          ? `${layoutMin} ${rawClass}`
+          : layoutMin;
+      return merged;
     },
   },
 

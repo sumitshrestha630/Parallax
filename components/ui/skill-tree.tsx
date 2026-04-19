@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect, useCallback, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import type { User } from "@supabase/supabase-js";
 import {
@@ -14,6 +15,7 @@ import {
 import type { UserDashboardState } from "@/types/dashboard";
 import { resolveCareerRawPath } from "@/lib/dashboard/career-dashboard";
 import { inferSkillKeyForTreeNode } from "@/lib/dashboard/skill-tree-node-tasks";
+import { getSuggestedTasksForSkill } from "@/lib/tasks/suggested-tasks";
 import { computeLevel } from "@/lib/dashboard/dashboard-service";
 import { createClient } from "@/lib/supabase/client";
 import { saveSkillTreeProgress } from "@/lib/supabase/queries";
@@ -33,6 +35,12 @@ const RES_ICON: Record<string, string> = {
   video: "📹", article: "📄", course: "🎓", practice: "💪",
 };
 
+const SUGGEST_DIFF: Record<string, string> = {
+  easy: "#6ED640",
+  medium: "#FBBF24",
+  hard: "#F472B6",
+};
+
 // ── Individual skill node card ─────────────────────────────────────────────────
 function NodeCard({
   node, track, isJustCompleted, onClick,
@@ -50,18 +58,18 @@ function NodeCard({
 
   return (
     <div
-      onClick={locked ? undefined : onClick}
+      onClick={onClick}
       style={{
         position: "absolute",
         left: `${node.x}%`,
         top:  `${TIER_Y[node.tier]}%`,
         transform: "translate(-50%, -50%)",
         width: `${w}px`,
-        cursor: locked ? "default" : "pointer",
+        cursor: "pointer",
         zIndex: 10,
       }}>
       <motion.div
-        whileHover={locked ? {} : { scale: 1.06 }}
+        whileHover={{ scale: locked ? 1.03 : 1.06 }}
         animate={isJustCompleted ? { scale: [1, 1.22, 0.96, 1] } : {}}
         transition={{ duration: 0.45 }}
         style={{
@@ -130,14 +138,33 @@ function NodeCard({
 
 // ── Node detail modal ──────────────────────────────────────────────────────────
 function NodeModal({
-  node, track, onClose, onComplete, onContinueToTasks,
+  node, track, onClose, onComplete, onContinueToTasks, accountLevel,
 }: {
   node: SkillNode;
   track: CareerTrack;
   onClose: () => void;
   onComplete: (id: string) => void;
   onContinueToTasks?: (payload: { skillKey: string; nodeId: string; nodeLabel: string }) => void;
+  /** Account level from merged XP (same bar as nav). */
+  accountLevel: number;
 }) {
+  const router = useRouter();
+  const lane = inferSkillKeyForTreeNode(node.id);
+  const suggestedPreview = useMemo(
+    () => getSuggestedTasksForSkill(node.id, accountLevel).slice(0, 3),
+    [node.id, accountLevel]
+  );
+
+  const goToTaskPage = () => {
+    const q = new URLSearchParams({
+      skill: lane,
+      label: node.label,
+      source: "skill-tree",
+    });
+    router.push(`/tasks/${encodeURIComponent(node.id)}?${q.toString()}`);
+    onClose();
+  };
+
   const canComplete = node.state === "active";
   const isCompleted = node.state === "completed";
   const isLocked    = node.state === "locked";
@@ -222,6 +249,13 @@ function NodeModal({
           </div>
           <p className="text-sm mt-3" style={{ color: "#94a3b8", lineHeight: 1.75 }}>
             {node.description}
+          </p>
+          <p className="text-xs mt-3" style={{ color: "#64748b" }}>
+            Practice lane <span style={{ color: track.color }}>{lane}</span>
+            {" · "}Your level <span style={{ color: "#94a3b8" }}>LV {accountLevel}</span>
+            {" · "}Node XP <span style={{ color: "#94a3b8" }}>+{node.xp}</span>
+            {" · "}
+            {isLocked ? "🔒 Locked" : isCompleted ? "✓ Done on tree" : "▶ Active"}
           </p>
         </div>
 
@@ -310,8 +344,59 @@ function NodeModal({
             </p>
           </div>
 
-          {/* CTAs — primary path is Tasks tab (quest-style practice) */}
+          {/* Suggested tasks (curated for this node) */}
+          <div>
+            <p style={{ fontFamily: PF, fontSize: "7px", color: "#475569", marginBottom: "10px" }}>
+              ▸ SUGGESTED NEXT TASKS
+            </p>
+            <div className="flex flex-col gap-2">
+              {suggestedPreview.map(st => (
+                <div
+                  key={st.task_key}
+                  style={{
+                    background: "#0d1a2e",
+                    border: "1px solid #1e3858",
+                    padding: "12px 14px",
+                  }}
+                >
+                  <div className="flex flex-wrap items-center gap-2 mb-1">
+                    <span className="text-sm font-medium" style={{ color: "#e2e8f0" }}>{st.title}</span>
+                    <span style={{
+                      fontFamily: PF, fontSize: "5px",
+                      color: SUGGEST_DIFF[st.difficulty] ?? "#64748b",
+                      border: `1px solid ${SUGGEST_DIFF[st.difficulty] ?? "#334155"}44`,
+                      padding: "2px 6px",
+                    }}>{st.difficulty.toUpperCase()}</span>
+                    <span style={{ fontFamily: PF, fontSize: "5px", color: "#6ED640" }}>+{st.xp_reward} XP</span>
+                    <span style={{ fontFamily: PF, fontSize: "5px", color: "#94a3b8" }}>{st.estimated_minutes} min</span>
+                  </div>
+                  <p className="text-xs" style={{ color: "#64748b", lineHeight: 1.6 }}>{st.description}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* CTAs — open full Tasks page with URL context, or stay in-dashboard */}
           <div className="flex flex-col gap-3">
+            <motion.button
+              type="button"
+              onClick={goToTaskPage}
+              whileHover={{ scale: 1.02, filter: "brightness(1.08)" }}
+              whileTap={{ scale: 0.98 }}
+              style={{
+                fontFamily: PF,
+                fontSize: "9px",
+                background: "#6ED640",
+                border: "3px solid #3A9018",
+                boxShadow: "0 5px 0 #1E6010, 0 7px 0 rgba(0,0,0,0.4)",
+                color: "#0a1a06",
+                padding: "14px 24px",
+                cursor: "pointer",
+                width: "100%",
+              }}
+            >
+              Go to Task
+            </motion.button>
             {onContinueToTasks && (
               <motion.button
                 type="button"
@@ -323,21 +408,21 @@ function NodeModal({
                   });
                   onClose();
                 }}
-                whileHover={{ scale: 1.02, filter: "brightness(1.08)" }}
+                whileHover={{ scale: 1.02, filter: "brightness(1.06)" }}
                 whileTap={{ scale: 0.98 }}
                 style={{
                   fontFamily: PF,
-                  fontSize: "9px",
-                  background: "#6ED640",
-                  border: "3px solid #3A9018",
-                  boxShadow: "0 5px 0 #1E6010, 0 7px 0 rgba(0,0,0,0.4)",
-                  color: "#0a1a06",
-                  padding: "14px 24px",
+                  fontSize: "8px",
+                  background: "#122040",
+                  border: "3px solid #1e3858",
+                  boxShadow: "0 4px 0 #06111e",
+                  color: "#6ED640",
+                  padding: "12px 20px",
                   cursor: "pointer",
                   width: "100%",
                 }}
               >
-                Continue to Tasks →
+                Continue in dashboard →
               </motion.button>
             )}
             <motion.button
@@ -741,6 +826,7 @@ export function SkillTree({
           <NodeModal
             node={selectedNode}
             track={track}
+            accountLevel={accountLevelNum}
             onClose={() => setSelectedNode(null)}
             onComplete={completeNode}
             onContinueToTasks={onContinueToTasks}

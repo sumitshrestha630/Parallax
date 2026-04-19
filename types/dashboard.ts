@@ -175,6 +175,14 @@ export interface TaskSummary {
   xpEarned: number;
 }
 
+/** `/tasks` query hand-off when coming from Skill Tree (“Go to Task”). */
+export type TasksUrlHandoff = {
+  skillLane: string;
+  nodeId: string;
+  nodeLabel?: string;
+  source?: string;
+};
+
 // ── Component registry types ──────────────────────────────────────────────────
 
 export type ComponentKey =

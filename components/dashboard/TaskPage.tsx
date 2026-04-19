@@ -2,8 +2,11 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { TaskWithUserState, UserTaskStatus } from "@/types/dashboard";
+import type { TaskWithUserState, UserTaskStatus, TasksUrlHandoff } from "@/types/dashboard";
+import type { SuggestedTask } from "@/types/suggested-task";
+import { getSuggestedTasksForSkill } from "@/lib/tasks/suggested-tasks";
 import { fetchTasks, startTask, completeTask, updateTaskProgress } from "@/lib/dashboard/tasks-api-client";
+import { pickPreferredTask, findNextTaskInLane } from "@/lib/dashboard/task-row-utils";
 import { TaskQuestDetail } from "@/components/dashboard/TaskQuestDetail";
 
 const PF = "'Press Start 2P', monospace";
@@ -49,26 +52,6 @@ function statusColor(s: UserTaskStatus) {
   return "#64748b";
 }
 
-/** Prefer tasks you can still work on; otherwise first by catalog order. */
-function pickPreferredTask(rows: TaskWithUserState[]): TaskWithUserState | undefined {
-  const rank = (s: UserTaskStatus) =>
-    ({ available: 0, in_progress: 1, completed: 2, locked: 3 }[s] ?? 99);
-  const sorted = [...rows].sort((a, b) => {
-    const d = rank(a.userTask.status) - rank(b.userTask.status);
-    if (d !== 0) return d;
-    return (a.task.order_index ?? 0) - (b.task.order_index ?? 0);
-  });
-  return sorted[0];
-}
-
-function findNextTaskInLane(rows: TaskWithUserState[], current: TaskWithUserState): TaskWithUserState | undefined {
-  const lane = rows
-    .filter(r => r.task.skill_key === current.task.skill_key)
-    .sort((a, b) => (a.task.order_index ?? 0) - (b.task.order_index ?? 0));
-  const i = lane.findIndex(r => r.task.task_key === current.task.task_key);
-  return i >= 0 ? lane[i + 1] : undefined;
-}
-
 export type SkillTreeTaskFocus = {
   skillKey: string;
   nodeId: string;
@@ -80,12 +63,15 @@ interface TaskPageProps {
   /** When set (e.g. from Skill Tree “Continue to Tasks”), opens the quest-style detail for that skill lane. */
   skillTreeFocus?: SkillTreeTaskFocus | null;
   onConsumedSkillTreeFocus?: () => void;
+  /** `/tasks?skill=&node=` — curated suggestions + lane-scoped fetch. */
+  urlHandoff?: TasksUrlHandoff | null;
 }
 
 export function TaskPage({
   onSkillsUpdated,
   skillTreeFocus,
   onConsumedSkillTreeFocus,
+  urlHandoff,
 }: TaskPageProps) {
   const router = useRouter();
   const [rows, setRows] = useState<TaskWithUserState[]>([]);
@@ -93,22 +79,35 @@ export function TaskPage({
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
 
-  const [mode, setMode] = useState<"learning" | "all">("learning");
+  const [mode, setMode] = useState<"learning" | "all">(() => (urlHandoff ? "all" : "learning"));
   const [status, setStatus] = useState<UserTaskStatus | "all">("all");
   const [difficulty, setDifficulty] = useState<string | "all">("all");
 
   const [questRow, setQuestRow] = useState<TaskWithUserState | null>(null);
   const [questTopicLabel, setQuestTopicLabel] = useState<string | undefined>();
 
+  const curatedSuggested: SuggestedTask[] = useMemo(() => {
+    if (!urlHandoff?.nodeId) return [];
+    return getSuggestedTasksForSkill(urlHandoff.nodeId);
+  }, [urlHandoff?.nodeId]);
+
+  /** Skill Tree handoff filters by lane; Learning mode also constrains by active tree keys — intersecting both often returns nothing. */
+  const fetchMode: "learning" | "all" = urlHandoff?.skillLane ? "all" : mode;
+
+  useEffect(() => {
+    if (urlHandoff?.skillLane) setMode("all");
+  }, [urlHandoff?.skillLane]);
+
   const refresh = useCallback(async () => {
     setErr(null);
     setLoading(true);
     try {
       const res = await fetchTasks({
-        mode,
+        mode: fetchMode,
         status: status === "all" ? undefined : status,
         difficulty: difficulty === "all" ? undefined : difficulty,
         includeResources: true,
+        ...(urlHandoff?.skillLane ? { skillKey: urlHandoff.skillLane } : {}),
       });
       setRows(res.rows);
       setLearningSkillKeys(res.learningSkillKeys ?? []);
@@ -119,7 +118,7 @@ export function TaskPage({
     } finally {
       setLoading(false);
     }
-  }, [mode, status, difficulty]);
+  }, [fetchMode, status, difficulty, urlHandoff?.skillLane]);
 
   useEffect(() => {
     /** Skill-tree open quest loads its own rows — don’t overwrite with the default filtered fetch. */
@@ -194,10 +193,11 @@ export function TaskPage({
   const runComplete = async (taskKey: string) => {
     await completeTask(taskKey);
     const nextRows = await fetchTasks({
-      mode,
+      mode: fetchMode,
       status: status === "all" ? undefined : status,
       difficulty: difficulty === "all" ? undefined : difficulty,
       includeResources: true,
+      ...(urlHandoff?.skillLane ? { skillKey: urlHandoff.skillLane } : {}),
     });
     setRows(nextRows.rows);
     setLearningSkillKeys(nextRows.learningSkillKeys ?? []);
@@ -243,6 +243,17 @@ export function TaskPage({
           skills (frontend, backend, …). If you see nothing, switch to <strong>All</strong> or complete a node on the Skill
           Tree tab so it becomes active.
         </p>
+        {urlHandoff && (
+          <p className="text-xs mt-2" style={{ color: "#94a3b8" }}>
+            From Skill Tree →{" "}
+            <strong style={{ color: "#e2e8f0" }}>
+              {urlHandoff.nodeLabel ?? urlHandoff.nodeId.replace(/_/g, " ")}
+            </strong>
+            {urlHandoff.source === "skill-tree" ? (
+              <span style={{ color: "#475569" }}> · lane {urlHandoff.skillLane}</span>
+            ) : null}
+          </p>
+        )}
         {mode === "learning" && learningSkillKeys.length > 0 && (
           <p className="text-xs mt-2" style={{ color: "#94a3b8" }}>
             Focus skills: {learningSkillKeys.join(", ")}
@@ -251,9 +262,59 @@ export function TaskPage({
       </header>
 
       <div className="flex-1 overflow-y-auto px-4 py-4 md:px-6 space-y-4">
+        {urlHandoff && curatedSuggested.length > 0 && (
+          <section style={{ ...CARD, padding: "16px" }}>
+            <h2 style={{ fontFamily: PF, fontSize: "10px", color: "#78E04A", marginBottom: "10px" }}>
+              Suggested practice (this node)
+            </h2>
+            <p className="text-xs mb-3" style={{ color: "#64748b" }}>
+              Curated steps you can do alongside your assigned Rooted tasks. Completing DB tasks below still awards XP.
+            </p>
+            <div className="space-y-3">
+              {curatedSuggested.map(st => (
+                <details
+                  key={st.task_key}
+                  className="rounded-sm border border-[#1e3858] bg-[#0d1a2e] px-3 py-2"
+                >
+                  <summary className="cursor-pointer list-none flex flex-wrap items-center gap-2 py-1">
+                    <span style={{ fontFamily: PF, fontSize: "8px", color: "#cbd5e1" }}>{st.title}</span>
+                    {badge(st.difficulty.toUpperCase(), st.difficulty === "easy" ? "#6ED640" : st.difficulty === "medium" ? "#FBBF24" : "#F472B6")}
+                    {badge(`+${st.xp_reward} XP`, "#6ED640")}
+                    {badge(`${st.estimated_minutes} min`, "#94a3b8")}
+                  </summary>
+                  <p className="text-xs mt-2 mb-2" style={{ color: "#94a3b8" }}>
+                    {st.description}
+                  </p>
+                  <p className="text-xs mb-2" style={{ color: "#64748b" }}>
+                    <strong style={{ color: "#94a3b8" }}>Objective:</strong> {st.learning_objective}
+                  </p>
+                  <ol className="text-xs space-y-1 list-decimal pl-5" style={{ color: "#cbd5e1" }}>
+                    {st.instructions.map((step, i) => (
+                      <li key={i}>{step}</li>
+                    ))}
+                  </ol>
+                </details>
+              ))}
+            </div>
+          </section>
+        )}
+
         <div className="flex flex-wrap gap-2 items-center" style={{ ...CARD, padding: "12px" }}>
           <span style={{ fontFamily: PF, fontSize: "7px", color: "#94a3b8" }}>VIEW</span>
-          <button type="button" onClick={() => setMode("learning")} style={BTN(mode === "learning" ? "#6ED640" : "#122040", "#1e3a6a", "#06111e")}>
+          <button
+            type="button"
+            disabled={!!urlHandoff?.skillLane}
+            title={
+              urlHandoff?.skillLane
+                ? "Learning mode conflicts with Skill Tree lane filter — using All tasks for this lane."
+                : undefined
+            }
+            onClick={() => setMode("learning")}
+            style={{
+              ...BTN(mode === "learning" ? "#6ED640" : "#122040", "#1e3a6a", "#06111e"),
+              ...(urlHandoff?.skillLane ? { opacity: 0.45, cursor: "not-allowed" } : {}),
+            }}
+          >
             Learning
           </button>
           <button type="button" onClick={() => setMode("all")} style={BTN(mode === "all" ? "#6ED640" : "#122040", "#1e3a6a", "#06111e")}>
