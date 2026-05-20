@@ -204,7 +204,7 @@ export function ResumeAnalyzer({ onViewNode }: Props) {
           {/* Loading skeleton */}
           {loading && (
             <div style={{ ...panelBase, padding: 16 }} className="rounded-sm space-y-3">
-              <p style={{ fontFamily: PF, fontSize: 9, color: "#475569" }}>🤖 Claude is reading your resume...</p>
+              <p style={{ fontFamily: PF, fontSize: 9, color: "#475569" }}>🤖 Our Bot is reading your resume...</p>
               {[80, 60, 70, 50].map((w, i) => (
                 <div key={i} className="h-2 rounded-sm animate-pulse" style={{ width: `${w}%`, background: "#1e3858" }} />
               ))}

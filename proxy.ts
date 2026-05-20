@@ -1,7 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(
@@ -23,25 +23,24 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  // Refresh session cookies + validate JWT (lighter than getUser() when RS256 JWKS apply).
-  const { error } = await supabase.auth.getClaims();
-  // Stale or partial cookies cause repeated refresh failures and noisy logs — clear session.
+  // Refreshes the session cookie. Must use getUser() — Edge Runtime safe.
+  const { data: { user }, error } = await supabase.auth.getUser();
   if (
     error?.code === "refresh_token_not_found" ||
     error?.message?.includes("Refresh Token Not Found")
   ) {
-    await supabase.auth.signOut();
+    const signOutResponse = NextResponse.redirect(new URL("/login", request.url));
+    signOutResponse.cookies.getAll().forEach(c => signOutResponse.cookies.delete(c.name));
+    return signOutResponse;
   }
+
+  void user; // session refresh side-effect is the goal; user value unused here
 
   return supabaseResponse;
 }
 
 export const config = {
   matcher: [
-    /*
-     * Skip Next.js internals + static assets so dev HMR / chunks do not churn
-     * middleware (and auth) on every editor save.
-     */
     "/((?!_next/static|_next/image|_next/webpack|__nextjs|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };

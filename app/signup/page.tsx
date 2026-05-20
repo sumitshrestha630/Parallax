@@ -228,6 +228,8 @@ export default function SignupPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
+  const [success, setSuccess] = useState(false);
 
   // Load Press Start 2P
   useEffect(() => {
@@ -238,10 +240,23 @@ export default function SignupPage() {
     return () => { document.head.removeChild(link); };
   }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMsg("");
     setLoading(true);
-    setTimeout(() => setLoading(false), 1800);
+    const supabase = createClient();
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+    });
+    if (error) {
+      setErrorMsg(error.message);
+      setLoading(false);
+      return;
+    }
+    setSuccess(true);
+    setLoading(false);
   };
 
   const handleOAuthLogin = async (provider: 'google' | 'github') => {
@@ -527,6 +542,17 @@ export default function SignupPage() {
                     {password.length < 6 ? "weak" : password.length < 10 ? "ok" : "strong"}
                   </p>
                 </div>
+              )}
+
+              {errorMsg && (
+                <p style={{ color: "#f87171", fontSize: "11px", fontFamily: PX_FONT, lineHeight: 1.6 }}>
+                  ⚠ {errorMsg}
+                </p>
+              )}
+              {success && (
+                <p style={{ color: "#6ED640", fontSize: "11px", fontFamily: PX_FONT, lineHeight: 1.6 }}>
+                  ✓ Check your email to confirm your account!
+                </p>
               )}
 
               {/* Submit */}

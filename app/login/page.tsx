@@ -204,6 +204,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
 
   useEffect(() => {
     const link = document.createElement("link");
@@ -213,10 +214,18 @@ export default function LoginPage() {
     return () => { document.head.removeChild(link); };
   }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMsg("");
     setLoading(true);
-    setTimeout(() => setLoading(false), 1800);
+    const supabase = createClient();
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) {
+      setErrorMsg(error.message);
+      setLoading(false);
+      return;
+    }
+    window.location.href = "/dashboard";
   };
 
   const handleOAuthLogin = async (provider: 'google' | 'github') => {
@@ -385,6 +394,12 @@ export default function LoginPage() {
                   <EyeIcon open={showPass} />
                 </button>
               </div>
+
+              {errorMsg && (
+                <p style={{ color: "#f87171", fontSize: "11px", fontFamily: PX_FONT, lineHeight: 1.6 }}>
+                  ⚠ {errorMsg}
+                </p>
+              )}
 
               {/* Submit */}
               <button
