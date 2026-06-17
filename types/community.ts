@@ -24,6 +24,7 @@ export type CommunityMessage = {
   status: MessageStatus;
   sent_at: string | null;
   replied_at: string | null;
+  follow_up_at: string | null;
   created_at: string;
   updated_at: string;
   professional?: Professional | null;

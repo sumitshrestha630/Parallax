@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { ProAvatar } from "@/components/community/ProAvatar";
-import type { Professional, CommunityProfile } from "@/types/community";
+import type { Professional, CommunityProfile, CommunityMessage } from "@/types/community";
 
 const PF = "'Press Start 2P', monospace";
 
@@ -31,11 +31,13 @@ export function MessageDraftModal({
   profile,
   onClose,
   onSaved,
+  editMessage,
 }: {
   professional: Professional | null;
   profile: CommunityProfile | null;
   onClose: () => void;
   onSaved: () => void;
+  editMessage?: CommunityMessage;
 }) {
   const supabase = createClient();
   const overlayRef = useRef<HTMLDivElement>(null);
@@ -47,21 +49,31 @@ export function MessageDraftModal({
   const [variation, setVariation] = useState(0);
   const [toast, setToast] = useState<string | null>(null);
 
+  const isEditMode = !!editMessage;
+  const activePro = professional ?? editMessage?.professional ?? null;
+
   const showToast = (msg: string) => {
     setToast(msg);
     setTimeout(() => setToast(null), 2500);
   };
 
   useEffect(() => {
-    if (professional) {
+    if (editMessage) {
+      // Edit mode: pre-fill, no auto-generation
+      setSubject(editMessage.subject ?? "");
+      setBody(editMessage.body);
+      setGoal("");
+      setVariation(0);
+    } else if (professional) {
+      // New draft: auto-generate
       setSubject(""); setBody(""); setGoal(""); setVariation(0);
       void generate(0, "");
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [professional?.id, professional?.linkedin_url]);
+  }, [professional?.id, professional?.linkedin_url, editMessage?.id]);
 
   const generate = async (varNum: number, customGoal: string) => {
-    if (!professional) return;
+    if (!activePro) return;
     setGenerating(true);
     try {
       const res = await fetch("/api/community/draft", {
@@ -69,11 +81,11 @@ export function MessageDraftModal({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           professional: {
-            full_name: professional.full_name,
-            role: professional.role,
-            company: professional.company,
-            field: professional.field,
-            bio: professional.bio,
+            full_name: activePro.full_name,
+            role: activePro.role,
+            company: activePro.company,
+            field: activePro.field,
+            bio: activePro.bio,
           },
           student: {
             full_name: profile?.full_name,
@@ -97,14 +109,14 @@ export function MessageDraftModal({
   };
 
   const upsertProfessional = async (): Promise<string | null> => {
-    if (!professional) return null;
-    if (professional.id) return professional.id;
+    if (!activePro) return null;
+    if (activePro.id) return activePro.id;
 
-    if (professional.linkedin_url) {
+    if (activePro.linkedin_url) {
       const { data: existing } = await supabase
         .from("professionals")
         .select("id")
-        .eq("linkedin_url", professional.linkedin_url)
+        .eq("linkedin_url", activePro.linkedin_url)
         .maybeSingle();
       if (existing) return existing.id as string;
     }
@@ -112,14 +124,14 @@ export function MessageDraftModal({
     const { data, error } = await supabase
       .from("professionals")
       .insert({
-        full_name: professional.full_name,
-        role: professional.role,
-        company: professional.company,
-        field: professional.field || professional.role,
-        location: professional.location ?? null,
-        bio: professional.bio ?? null,
-        linkedin_url: professional.linkedin_url ?? null,
-        avatar_seed: professional.avatar_seed ?? null,
+        full_name: activePro.full_name,
+        role: activePro.role,
+        company: activePro.company,
+        field: activePro.field || activePro.role,
+        location: activePro.location ?? null,
+        bio: activePro.bio ?? null,
+        linkedin_url: activePro.linkedin_url ?? null,
+        avatar_seed: activePro.avatar_seed ?? null,
       })
       .select("id")
       .single();
@@ -127,9 +139,47 @@ export function MessageDraftModal({
     return (data as { id: string }).id;
   };
 
+  const awardXp = async (event: string): Promise<number> => {
+    try {
+      const res = await fetch("/api/community/xp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ event }),
+      });
+      const data = await res.json() as { awardedXp?: number };
+      return data.awardedXp ?? 0;
+    } catch {
+      return 0;
+    }
+  };
+
   const saveMessage = async (status: "draft" | "sent") => {
     if (!body.trim()) return;
     setSaving(true);
+
+    if (isEditMode) {
+      const { error } = await supabase
+        .from("messages")
+        .update({
+          subject: subject || null,
+          body,
+          status,
+          ...(status === "sent" ? { sent_at: new Date().toISOString() } : {}),
+        })
+        .eq("id", editMessage.id);
+      setSaving(false);
+      if (error) { showToast("Save failed: " + error.message); return; }
+      if (status === "sent") {
+        const xp = await awardXp("message_sent");
+        showToast(`Marked as sent ✓  ·  +${xp} XP`);
+      } else {
+        showToast("Draft updated");
+      }
+      onSaved();
+      onClose();
+      return;
+    }
+
     const proId = await upsertProfessional();
     if (!proId) { setSaving(false); return; }
 
@@ -146,7 +196,12 @@ export function MessageDraftModal({
     });
     setSaving(false);
     if (error) { showToast("Save failed: " + error.message); return; }
-    showToast(status === "draft" ? "Saved as draft" : "Marked as sent ✓");
+    if (status === "sent") {
+      const xp = await awardXp("message_sent");
+      showToast(`Marked as sent ✓  ·  +${xp} XP`);
+    } else {
+      showToast("Saved as draft");
+    }
     onSaved();
     onClose();
   };
@@ -158,10 +213,10 @@ export function MessageDraftModal({
 
   const sendOnLinkedIn = async () => {
     await copy();
-    window.open(professional?.linkedin_url ?? "https://www.linkedin.com", "_blank", "noopener,noreferrer");
+    window.open(activePro?.linkedin_url ?? "https://www.linkedin.com", "_blank", "noopener,noreferrer");
   };
 
-  if (!professional) return null;
+  if (!activePro) return null;
 
   return (
     <div
@@ -199,7 +254,9 @@ export function MessageDraftModal({
         gap: "16px",
       }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <span style={{ fontFamily: PF, fontSize: "11px", color: "#6ED640" }}>Draft outreach</span>
+          <span style={{ fontFamily: PF, fontSize: "11px", color: "#6ED640" }}>
+            {isEditMode ? "Edit draft" : "Draft outreach"}
+          </span>
           <button onClick={onClose} style={{ background: "none", border: "none", color: "#7a8fa8", cursor: "pointer", fontSize: "18px" }}>✕</button>
         </div>
 
@@ -209,15 +266,15 @@ export function MessageDraftModal({
           border: "2px solid #1e3858", background: "#0d1a2e",
           alignItems: "flex-start",
         }}>
-          <ProAvatar pro={professional} size={48} />
+          <ProAvatar pro={activePro} size={48} />
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontFamily: PF, fontSize: "10px", color: "#e2e8f0", marginBottom: 4 }}>{professional.full_name}</div>
-            <div style={{ fontSize: "13px", color: "#94a3b8" }}>{professional.role}</div>
-            <div style={{ fontSize: "12px", color: "#7a8fa8" }}>{professional.company}</div>
+            <div style={{ fontFamily: PF, fontSize: "10px", color: "#e2e8f0", marginBottom: 4 }}>{activePro.full_name}</div>
+            <div style={{ fontSize: "13px", color: "#94a3b8" }}>{activePro.role}</div>
+            <div style={{ fontSize: "12px", color: "#7a8fa8" }}>{activePro.company}</div>
           </div>
-          {professional.linkedin_url && (
+          {activePro.linkedin_url && (
             <a
-              href={professional.linkedin_url}
+              href={activePro.linkedin_url}
               target="_blank"
               rel="noreferrer"
               style={{ color: "#6ED640", fontSize: "12px", textDecoration: "none", border: "1px solid #1e3858", padding: "4px 8px" }}
@@ -294,7 +351,9 @@ export function MessageDraftModal({
             <button style={BTN} disabled={!body} onClick={copy}>Copy</button>
           </div>
           <div style={{ display: "flex", gap: "8px" }}>
-            <button style={BTN} disabled={!body || saving} onClick={() => saveMessage("draft")}>Save draft</button>
+            <button style={BTN} disabled={!body || saving} onClick={() => saveMessage("draft")}>
+              {isEditMode ? "Update draft" : "Save draft"}
+            </button>
             <button style={BTN} disabled={!body || generating} onClick={sendOnLinkedIn}>↗ LinkedIn</button>
             <button style={BTN_PRIMARY} disabled={!body || saving} onClick={() => saveMessage("sent")}>✓ Mark sent</button>
           </div>

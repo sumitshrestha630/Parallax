@@ -88,6 +88,7 @@ export function Dashboard({ user, dashboardData }: DashboardProps) {
   const [navTab, setNavTab]   = useState<NavTab>("Dashboard");
   const [taskTab, setTaskTab] = useState<TaskTab>("Tasks");
   const [tasksFromSkillTree, setTasksFromSkillTree] = useState<SkillTreeTaskFocus | null>(null);
+  const [overdueCount, setOverdueCount] = useState(0);
 
   const clearTasksFromSkillTree = useCallback(() => {
     setTasksFromSkillTree(null);
@@ -178,6 +179,18 @@ export function Dashboard({ user, dashboardData }: DashboardProps) {
     return computeReadiness(nodes);
   }, [dashboardData?.state?.metadata, careerRes.track]);
 
+  /** Currently focused skill tree node + challenge progress */
+  const currentlyLearning = useMemo(() => {
+    const persisted = parseSkillTreePersisted(dashboardData?.state?.metadata as Record<string, unknown> | null);
+    const trackData  = persisted?.tracks?.[careerRes.track.id];
+    if (!trackData?.inProgress) return null;
+    const node       = careerRes.track.nodes.find(n => n.id === trackData.inProgress);
+    if (!node) return null;
+    const checkedCount = (trackData.challenges?.[node.id] ?? []).length;
+    const totalCount   = node.challenges.length;
+    return { node, checkedCount, totalCount, track: careerRes.track };
+  }, [dashboardData?.state?.metadata, careerRes.track]);
+
   /** Supabase `user_dashboard_items` — when present, show registry widgets instead of the static career map only. */
   const hasDashboardWidgets = (dashboardData?.items ?? []).some(i => i.visible);
 
@@ -202,6 +215,21 @@ export function Dashboard({ user, dashboardData }: DashboardProps) {
     }
   }, [navTab, syncSkillsFromDb]);
 
+  /** Overdue follow-up badge — count sent messages with follow_up_at in the past. */
+  useEffect(() => {
+    const sb = createClient();
+    const fetchOverdue = async () => {
+      const { count } = await sb
+        .from("messages")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "sent")
+        .not("follow_up_at", "is", null)
+        .lt("follow_up_at", new Date().toISOString());
+      setOverdueCount(count ?? 0);
+    };
+    void fetchOverdue();
+  }, []);
+
 const signOut = async () => { await createClient().auth.signOut(); router.push("/"); };
 
   return (
@@ -219,6 +247,7 @@ const signOut = async () => { await createClient().auth.signOut(); router.push("
 
         {NAV_TABS.map(tab => {
           const active = navTab === tab;
+          const badge = tab === "Community" && overdueCount > 0 && navTab !== "Community";
           return (
             <button key={tab} onClick={() => setNavTab(tab)}
               className="relative h-full px-3 transition-colors"
@@ -230,6 +259,18 @@ const signOut = async () => { await createClient().auth.signOut(); router.push("
                 marginBottom: "-2px",
               }}>
               {tab}
+              {badge && (
+                <span style={{
+                  position: "absolute", top: "10px", right: "2px",
+                  background: "#ef4444", color: "#fff",
+                  fontSize: "9px", fontFamily: "inherit", fontWeight: 700,
+                  borderRadius: "999px", minWidth: "16px", height: "16px",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  padding: "0 3px", lineHeight: 1,
+                }}>
+                  {overdueCount > 9 ? "9+" : overdueCount}
+                </span>
+              )}
               {active && <span className="absolute bottom-0 left-0 right-0 h-0.5" style={{ background: "#6ED640" }} />}
             </button>
           );
@@ -359,6 +400,50 @@ const signOut = async () => { await createClient().auth.signOut(); router.push("
               />
             )}
           </div>
+
+          {/* Currently Learning banner */}
+          {currentlyLearning && (
+            <div
+              className="flex-shrink-0 px-5 py-3 flex items-center gap-4"
+              style={{ background: "rgba(251,191,36,0.06)", borderTop: "2px solid #FBBF2433" }}
+            >
+              <span style={{ fontSize: "22px", flexShrink: 0 }}>{currentlyLearning.node.icon}</span>
+              <div className="flex-1 min-w-0">
+                <div style={{ fontFamily: PF, fontSize: "9px", color: "#FBBF24", marginBottom: "3px" }}>
+                  ⚡ CURRENTLY LEARNING
+                </div>
+                <div className="flex items-center gap-3 flex-wrap">
+                  <span style={{ fontFamily: PF, fontSize: "9px", color: "#e2e8f0" }}>
+                    {currentlyLearning.node.label}
+                  </span>
+                  <span style={{ fontFamily: PF, fontSize: "9px", color: "#475569" }}>
+                    {currentlyLearning.checkedCount}/{currentlyLearning.totalCount} challenges
+                  </span>
+                  {/* mini progress bar */}
+                  <div style={{ width: 80, height: 4, background: "#1a2744", borderRadius: 2, flexShrink: 0 }}>
+                    <div style={{
+                      height: "100%", borderRadius: 2,
+                      background: "#FBBF24",
+                      width: currentlyLearning.totalCount > 0
+                        ? `${Math.round((currentlyLearning.checkedCount / currentlyLearning.totalCount) * 100)}%`
+                        : "0%",
+                      transition: "width 0.4s",
+                    }} />
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={() => setNavTab("Skill Tree")}
+                style={{
+                  fontFamily: PF, fontSize: "9px", flexShrink: 0,
+                  background: "rgba(251,191,36,0.12)", color: "#FBBF24",
+                  border: "1px solid #FBBF2444", padding: "6px 10px", cursor: "pointer",
+                }}
+              >
+                Open ▶
+              </button>
+            </div>
+          )}
 
           {/* Most Recommended panel */}
           <div className="flex-shrink-0 px-5 py-4 overflow-y-auto"
